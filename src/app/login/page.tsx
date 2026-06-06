@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
+import Footer from '../../components/Footer';
 
 export default function AdminLogin() {
   const [step, setStep] = useState<'email' | 'otp'>('email');
@@ -82,9 +84,9 @@ export default function AdminLogin() {
     <div className="min-h-screen bg-[#F8FAFB] text-[#1A1A1A] font-sans selection:bg-[#1A1A1A] selection:text-white flex flex-col justify-between">
       <Toaster position="top-right" />
 
-      {/* Header */}
-      <header className="w-full bg-white border-b border-gray-100 py-4 px-6 sm:px-8 flex items-center justify-between z-50 shrink-0">
-        <div className="flex items-center space-x-2.5">
+      {/* Simple Header matching the navbar branding */}
+      <header className="w-full bg-white border-b border-gray-100 py-4 px-6 sm:px-8 flex justify-between items-center z-50 shrink-0">
+        <Link href="http://localhost:3000" className="flex items-center space-x-2.5 group">
           <svg 
             viewBox="0 0 100 100" 
             fill="none" 
@@ -92,35 +94,39 @@ export default function AdminLogin() {
             strokeWidth="5.5" 
             strokeLinecap="round" 
             strokeLinejoin="round" 
-            className="w-5.5 h-5.5 text-[#1A1A1A] shrink-0"
+            className="w-5.5 h-5.5 text-[#1A1A1A] shrink-0 transition-transform group-hover:scale-105"
           >
+            {/* Outer gable */}
             <path d="M 20,90 L 20,40 L 50,15 L 80,40 L 80,90" />
+            {/* Middle gable */}
             <path d="M 30,90 L 30,46 L 50,28 L 70,46 L 70,90" />
+            {/* High peak */}
             <path d="M 40,90 L 40,24 L 50,15" />
+            {/* Inner gable */}
             <path d="M 42,90 L 42,54 L 50,46 L 58,54 L 58,90" />
+            {/* Central Door */}
             <rect x="46" y="72" width="8" height="18" />
           </svg>
           <span className="text-xl font-bold tracking-tight text-[#1A1A1A]">Stayzo</span>
-          <span className="bg-[#1A1A1A] text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ml-1 tracking-wider">Admin</span>
-        </div>
+        </Link>
       </header>
 
-      {/* Main Container */}
+      {/* Main Content Container with centered card layout */}
       <div className="flex-1 flex items-center justify-center p-6 md:p-12">
         <div className="w-full max-w-[480px] bg-white rounded-[32px] border border-gray-100 p-8 sm:p-12 shadow-sm">
           
           {step === 'email' ? (
             <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
               <h2 className="text-3xl font-extrabold text-[#1A1A1A] mb-3 tracking-tight">
-                Control Portal
+                Welcome back
               </h2>
               <p className="text-gray-400 text-xs font-semibold mb-8 leading-relaxed">
-                Log in to the Stayzo Administrative Terminal. Access is strictly restricted to authorized emails.
+                Enter your email to log in to your admin account. We'll send you a secure login code via email.
               </p>
 
               <form onSubmit={handleSendCode} noValidate className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-wider text-gray-400 font-extrabold block">Admin Email Address</label>
+                  <label className="text-[10px] uppercase tracking-wider text-gray-400 font-extrabold block">Email Address</label>
                   <input
                     type="email"
                     required
@@ -136,7 +142,7 @@ export default function AdminLogin() {
                   disabled={loading}
                   className="w-full bg-[#1A1A1A] hover:bg-black disabled:opacity-50 text-white py-3.5 rounded-full text-xs font-bold tracking-wider uppercase transition shadow-sm mt-4 select-none cursor-pointer"
                 >
-                  {loading ? 'Authorizing...' : 'Verify Email'}
+                  {loading ? 'Processing...' : 'Send Login Code'}
                 </button>
               </form>
             </div>
@@ -149,17 +155,17 @@ export default function AdminLogin() {
                 <ArrowLeft className="w-3.5 h-3.5 mr-2" /> Back
               </button>
 
-              <h2 className="text-3xl font-extrabold text-[#1A1A1A] mb-3 tracking-tight">Secure Access</h2>
+              <h2 className="text-3xl font-extrabold text-[#1A1A1A] mb-3 tracking-tight">Check your email</h2>
               <div className="flex items-center space-x-2 text-[#1A1A1A] mb-8">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
                 <p className="text-xs font-semibold text-gray-400">
-                  We've sent an access key to <span className="font-extrabold text-[#1A1A1A] break-all">{email}</span>
+                  We've sent a 6-digit code to <span className="font-extrabold text-[#1A1A1A] break-all">{email}</span>
                 </p>
               </div>
 
               <form onSubmit={handleVerify} className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-wider text-gray-400 font-extrabold block">Verification Code</label>
+                  <label className="text-[10px] uppercase tracking-wider text-gray-400 font-extrabold block">Secure Login Code</label>
                   <input
                     type="text"
                     required
@@ -176,7 +182,7 @@ export default function AdminLogin() {
                   disabled={loading}
                   className="w-full bg-[#1A1A1A] hover:bg-black disabled:opacity-50 text-white py-3.5 rounded-full text-xs font-bold tracking-wider uppercase transition shadow-sm mt-4 select-none cursor-pointer"
                 >
-                  {loading ? 'Authenticating...' : 'Enter Console'}
+                  {loading ? 'Verifying...' : 'Verify & Continue'}
                 </button>
               </form>
             </div>
@@ -185,10 +191,8 @@ export default function AdminLogin() {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="w-full bg-white border-t border-gray-100 py-6 text-center text-xs font-semibold text-gray-400 shrink-0">
-        &copy; {new Date().getFullYear()} Stayzo Inc. Control Console.
-      </footer>
+      {/* Footer Component */}
+      <Footer />
     </div>
   );
 }
