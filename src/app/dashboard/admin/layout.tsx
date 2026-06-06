@@ -16,27 +16,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [editForm, setEditForm] = useState({ firstName: '', lastName: '', email: '' });
 
   useEffect(() => {
-    const savedProfile = localStorage.getItem('stayzo_admin_profile');
-    if (savedProfile) {
-      setAdminUser(JSON.parse(savedProfile));
+    const token = sessionStorage.getItem('stayzo_token');
+    if (!token) {
+      window.location.href = '/login';
       return;
     }
 
-    const token = sessionStorage.getItem('stayzo_token');
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        setAdminUser({
-          firstName: payload.firstName || 'Administrator',
-          lastName: payload.lastName || '',
-          email: payload.email || 'admin@stayzo.com',
-        });
-      } catch (e) {
-        console.error('Failed to parse admin token', e);
-        setAdminUser({ firstName: 'Admin', lastName: '', email: 'admin@stayzo.com' });
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const lowerEmail = (payload.email || '').toLowerCase();
+      const isAdminUser = !!payload.isAdmin || lowerEmail === 'stayzoavp@gmail.com' || lowerEmail.startsWith('admin@');
+      
+      if (!isAdminUser) {
+        window.location.href = '/login';
+        return;
       }
-    } else {
-      setAdminUser({ firstName: 'Admin', lastName: 'User', email: 'admin@stayzo.com' });
+
+      setAdminUser({
+        firstName: payload.firstName || 'Administrator',
+        lastName: payload.lastName || '',
+        email: payload.email || 'admin@stayzo.com',
+      });
+    } catch (e) {
+      console.error('Failed to parse admin token', e);
+      window.location.href = '/login';
     }
   }, []);
 
@@ -60,7 +63,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const handleLogout = () => {
     sessionStorage.removeItem('stayzo_token');
     localStorage.removeItem('stayzo_admin_profile');
-    window.location.href = '/';
+    window.location.href = '/login';
   };
 
   const getPageTitle = () => {
