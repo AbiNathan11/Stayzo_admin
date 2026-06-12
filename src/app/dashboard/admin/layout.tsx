@@ -4,16 +4,53 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 // Added Building2 icon for the Listing Interactions item
-import { LayoutDashboard, Users, Activity, FileText, MessageSquare, LogOut, Building2, Mail, X } from 'lucide-react';
+import { LayoutDashboard, Users, Activity, FileText, MessageSquare, LogOut, Building2, Mail, X, Menu } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [adminUser, setAdminUser] = useState<{ firstName: string; lastName: string; email: string } | null>(null);
+  const [adminUser, setAdminUser] = useState<{ firstName: string; lastName: string; email: string; profileImage?: string | null } | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Profile modal states
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', email: '' });
+  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', email: '', profileImage: '' });
+
+  const fetchProfile = () => {
+    const token = sessionStorage.getItem('stayzo_token');
+    if (!token) return;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const lowerEmail = (payload.email || '').toLowerCase();
+      fetch(`http://localhost:3001/api/auth/profile/${lowerEmail}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.user) {
+          setAdminUser({
+            firstName: data.user.firstName || payload.firstName || 'Administrator',
+            lastName: data.user.lastName || payload.lastName || '',
+            email: data.user.email || payload.email || 'admin@stayzo.com',
+            profileImage: data.user.profileImage
+          });
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch user profile', err);
+        setAdminUser({
+          firstName: payload.firstName || 'Administrator',
+          lastName: payload.lastName || '',
+          email: payload.email || 'admin@stayzo.com',
+          profileImage: null
+        });
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   useEffect(() => {
     const token = sessionStorage.getItem('stayzo_token');
@@ -32,32 +69,59 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return;
       }
 
-      setAdminUser({
-        firstName: payload.firstName || 'Administrator',
-        lastName: payload.lastName || '',
-        email: payload.email || 'admin@stayzo.com',
-      });
+      fetchProfile();
     } catch (e) {
       console.error('Failed to parse admin token', e);
       window.location.href = '/login';
     }
   }, []);
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editForm.firstName || !editForm.email) {
-      alert("First name and Email are required.");
+    if (!editForm.firstName) {
+      alert("First name is required.");
       return;
     }
-    const updated = {
-      firstName: editForm.firstName,
-      lastName: editForm.lastName,
-      email: editForm.email
-    };
-    setAdminUser(updated);
-    localStorage.setItem('stayzo_admin_profile', JSON.stringify(updated));
-    setIsEditing(false);
-    alert("Profile details updated successfully.");
+    const token = sessionStorage.getItem('stayzo_token');
+    try {
+      const res = await fetch('http://localhost:3001/api/auth/update-profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          email: editForm.email,
+          firstName: editForm.firstName,
+          lastName: editForm.lastName,
+          profileImage: editForm.profileImage
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update profile');
+
+      setAdminUser({
+        firstName: data.user.firstName,
+        lastName: data.user.lastName,
+        email: data.user.email,
+        profileImage: data.user.profileImage
+      });
+      setIsEditing(false);
+      alert("Profile details updated successfully.");
+    } catch (err: any) {
+      alert(err.message || 'An error occurred.');
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditForm(prev => ({ ...prev, profileImage: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleLogout = () => {
@@ -103,35 +167,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="h-screen overflow-hidden bg-[#F8FAFC] text-[#1A1A1A] font-sans selection:bg-[#1A1A1A] selection:text-white flex">
 
+      {/* SIDEBAR OVERLAY FOR MOBILE */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 md:hidden animate-in fade-in duration-200"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* SIDEBAR */}
-      <aside className="w-[280px] bg-white border-r border-gray-100 flex flex-col shrink-0">
+      <aside className={`fixed inset-y-0 left-0 z-50 w-[280px] bg-white border-r border-gray-100 flex flex-col shrink-0 transition-transform duration-300 md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
 
         {/* Brand Header */}
         <div className="p-8 border-b border-gray-50 flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2.5 group">
-            <svg 
-              viewBox="0 0 100 100" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="5.5" 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              className="w-5.5 h-5.5 text-[#1A1A1A] shrink-0 transition-transform group-hover:scale-105"
-            >
-              {/* Outer gable */}
-              <path d="M 20,90 L 20,40 L 50,15 L 80,40 L 80,90" />
-              {/* Middle gable */}
-              <path d="M 30,90 L 30,46 L 50,28 L 70,46 L 70,90" />
-              {/* High peak */}
-              <path d="M 40,90 L 40,24 L 50,15" />
-              {/* Inner gable */}
-              <path d="M 42,90 L 42,54 L 50,46 L 58,54 L 58,90" />
-              {/* Central Door */}
-              <rect x="46" y="72" width="8" height="18" />
-            </svg>
+          <Link href="/" className="flex items-center space-x-2 group">
+            <div className="flex items-end space-x-1 h-5">
+              <div className="w-[3px] h-3 bg-[#1A1A1A] rounded-full group-hover:bg-[#1A1A1A] transition-colors"></div>
+              <div className="w-[3px] h-5 bg-[#1A1A1A] rounded-full group-hover:bg-[#1A1A1A] transition-colors"></div>
+              <div className="w-[3px] h-4 bg-[#1A1A1A] rounded-full group-hover:bg-[#1A1A1A] transition-colors"></div>
+              <div className="w-[3px] h-2.5 bg-[#1A1A1A] rounded-full group-hover:bg-[#1A1A1A] transition-colors"></div>
+            </div>
             <span className="text-xl font-bold tracking-tight text-[#1A1A1A]">Stayzo</span>
             <span className="bg-[#1A1A1A] text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ml-1 tracking-wider">Admin</span>
           </Link>
+          <button 
+            onClick={() => setIsSidebarOpen(false)}
+            className="md:hidden text-gray-400 hover:text-gray-900 cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Menu Sections */}
@@ -145,6 +209,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={() => setIsSidebarOpen(false)}
                     className={`w-full flex items-center space-x-3.5 px-4 py-3 rounded-2xl text-xs font-extrabold transition text-left cursor-pointer ${isActive
                       ? 'bg-[#1A1A1A] text-white shadow-sm'
                       : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
@@ -176,14 +241,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="flex-1 flex flex-col min-w-0">
 
         {/* HEADER */}
-        <header className="h-20 bg-white border-b border-gray-100 px-8 flex justify-between items-center z-45 shrink-0 select-none">
-          <div>
-            <h1 className="text-xl font-extrabold tracking-tight text-gray-900 capitalize">
-              {getPageTitle()}
-            </h1>
-            <p className="text-gray-400 text-[10px] font-extrabold uppercase tracking-wider mt-0.5">
-              Stayzo Control Terminal &bull; Live Status
-            </p>
+        <header className="h-20 bg-white border-b border-gray-100 px-6 sm:px-8 flex justify-between items-center z-30 shrink-0 select-none">
+          <div className="flex items-center space-x-3">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 -ml-2 text-gray-500 hover:text-gray-900 md:hidden outline-none cursor-pointer"
+            >
+              <Menu className="w-5.5 h-5.5" />
+            </button>
+            <div>
+              <h1 className="text-sm sm:text-xl font-extrabold tracking-tight text-gray-900 capitalize">
+                {getPageTitle()}
+              </h1>
+              <p className="text-gray-400 text-[8px] sm:text-[10px] font-extrabold uppercase tracking-wider mt-0.5">
+                Stayzo Control Terminal &bull; Live Status
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center space-x-6">
@@ -193,26 +266,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   setEditForm({
                     firstName: adminUser.firstName,
                     lastName: adminUser.lastName,
-                    email: adminUser.email
+                    email: adminUser.email,
+                    profileImage: adminUser.profileImage || ''
                   });
                 }
                 setIsProfileOpen(true);
               }}
               className="flex items-center space-x-3 hover:opacity-80 transition text-left outline-none cursor-pointer"
             >
-              <div className="text-right">
+              <div className="text-right hidden sm:block">
                 <p className="text-xs font-extrabold text-gray-900">{adminUser?.firstName} {adminUser?.lastName}</p>
                 <p className="text-[10px] font-bold text-gray-400">{adminUser?.email}</p>
               </div>
-              <div className="w-10 h-10 rounded-full bg-[#1A1A1A] text-white border border-gray-100 shadow-sm flex items-center justify-center font-extrabold text-sm select-none">
-                {adminUser?.firstName?.charAt(0).toUpperCase() || 'A'}
+              <div className="w-10 h-10 rounded-full bg-[#1A1A1A] text-white border border-gray-100 shadow-sm flex items-center justify-center font-extrabold text-sm select-none overflow-hidden shrink-0">
+                {adminUser?.profileImage ? (
+                  <img src={adminUser.profileImage} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  adminUser?.firstName?.charAt(0).toUpperCase() || 'A'
+                )}
               </div>
             </button>
           </div>
         </header>
 
         {/* PAGE CONTENT */}
-        <main className="flex-1 overflow-y-auto p-8 max-w-7xl w-full mx-auto space-y-8">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-6 sm:space-y-8">
           {children}
         </main>
 
@@ -235,8 +313,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {!isEditing ? (
               <div className="space-y-4">
                 <div className="flex items-center space-x-4 bg-gray-50 p-4 rounded-2xl">
-                  <div className="w-12 h-12 rounded-full bg-[#1A1A1A] text-white flex items-center justify-center font-extrabold text-lg">
-                    {adminUser.firstName.charAt(0).toUpperCase()}
+                  <div className="w-12 h-12 rounded-full bg-[#1A1A1A] text-white flex items-center justify-center font-extrabold text-lg overflow-hidden shrink-0">
+                    {adminUser.profileImage ? (
+                      <img src={adminUser.profileImage} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      adminUser.firstName.charAt(0).toUpperCase()
+                    )}
                   </div>
                   <div>
                     <h4 className="font-extrabold text-base text-gray-900">{adminUser.firstName} {adminUser.lastName}</h4>
@@ -265,7 +347,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       setEditForm({
                         firstName: adminUser.firstName,
                         lastName: adminUser.lastName,
-                        email: adminUser.email
+                        email: adminUser.email,
+                        profileImage: adminUser.profileImage || ''
                       });
                       setIsEditing(true);
                     }}
@@ -283,6 +366,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </div>
             ) : (
               <form onSubmit={handleSaveProfile} className="space-y-4">
+                <div className="flex flex-col items-center space-y-2 pb-2">
+                  <div className="w-20 h-20 rounded-full bg-[#1A1A1A] text-white flex items-center justify-center font-extrabold text-2xl overflow-hidden border border-gray-100">
+                    {editForm.profileImage ? (
+                      <img src={editForm.profileImage} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      editForm.firstName.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <label className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer font-bold bg-blue-50 px-3 py-1 rounded-lg border border-blue-100">
+                    Upload Profile Picture
+                    <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                  </label>
+                </div>
+
                 <div className="space-y-1">
                   <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">First Name</label>
                   <input
@@ -305,13 +402,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Email Address</label>
+                  <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Email Address (Read-only)</label>
                   <input
                     type="email"
                     required
+                    disabled
                     value={editForm.email}
-                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                    className="w-full bg-gray-50 border-none rounded-xl px-4 py-2.5 text-xs font-bold text-gray-800 outline-none focus:ring-1 focus:ring-gray-300"
+                    className="w-full bg-gray-100 border-none rounded-xl px-4 py-2.5 text-xs font-bold text-gray-400 cursor-not-allowed outline-none"
                   />
                 </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Users,
@@ -14,12 +14,33 @@ import {
 } from 'lucide-react';
 
 export default function AdminOverviewDashboard() {
+  const [statsData, setStatsData] = useState({
+    totalUsers: 0,
+    pendingApprovals: 0,
+    activeListings: 0,
+    pendingMessages: 0
+  });
+
+  useEffect(() => {
+    fetch('http://localhost:3001/api/auth/stats', { cache: 'no-store' })
+      .then(res => res.json())
+      .then(data => {
+        setStatsData({
+          totalUsers: data.totalUsers || 0,
+          pendingApprovals: data.pendingApprovals || 0,
+          activeListings: data.activeListings || 0,
+          pendingMessages: data.pendingMessages || 0
+        });
+      })
+      .catch(console.error);
+  }, []);
+
   // Global aggregate metrics reflecting your dashboard's feature set
   const stats = [
-    { label: 'Total Platform Users', value: '1,248', change: '+12% this week', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Pending Approvals', value: '14', change: 'Requires evaluation', icon: Building2, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { label: 'Active Escrow Leases', value: '84', change: 'Live agreements', icon: FileText, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'System Flagged Anomalies', value: '3', change: 'High priority risk', icon: ShieldAlert, color: 'text-red-600', bg: 'bg-red-50' },
+    { label: 'Total Platform Users', value: statsData.totalUsers.toString(), change: 'Live database count', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Pending Approvals', value: statsData.pendingApprovals.toString(), change: 'Requires evaluation', icon: Building2, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { label: 'Active Listings', value: statsData.activeListings.toString(), change: 'Live properties', icon: FileText, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: 'Pending Messages', value: statsData.pendingMessages.toString(), change: 'Unread inquiries', icon: ShieldAlert, color: 'text-red-600', bg: 'bg-red-50' },
   ];
 
   // Quick action gateways mapped exactly to your sidebar paths
