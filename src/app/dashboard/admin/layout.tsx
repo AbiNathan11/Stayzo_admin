@@ -4,11 +4,12 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 // Added Building2 icon for the Listing Interactions item
-import { LayoutDashboard, Users, Activity, FileText, MessageSquare, LogOut, Building2, Mail, X } from 'lucide-react';
+import { LayoutDashboard, Users, Activity, FileText, MessageSquare, LogOut, Building2, Mail, X, Menu } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [adminUser, setAdminUser] = useState<{ firstName: string; lastName: string; email: string } | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Profile modal states
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -103,8 +104,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="h-screen overflow-hidden bg-[#F8FAFC] text-[#1A1A1A] font-sans selection:bg-[#1A1A1A] selection:text-white flex">
 
+      {/* SIDEBAR OVERLAY FOR MOBILE */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 md:hidden animate-in fade-in duration-200"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* SIDEBAR */}
-      <aside className="w-[280px] bg-white border-r border-gray-100 flex flex-col shrink-0">
+      <aside className={`fixed inset-y-0 left-0 z-50 w-[280px] bg-white border-r border-gray-100 flex flex-col shrink-0 transition-transform duration-300 md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
 
         {/* Brand Header */}
         <div className="p-8 border-b border-gray-50 flex items-center justify-between">
@@ -132,6 +141,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <span className="text-xl font-bold tracking-tight text-[#1A1A1A]">Stayzo</span>
             <span className="bg-[#1A1A1A] text-white text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ml-1 tracking-wider">Admin</span>
           </Link>
+          <button 
+            onClick={() => setIsSidebarOpen(false)}
+            className="md:hidden text-gray-400 hover:text-gray-900 cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Menu Sections */}
@@ -145,6 +160,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={() => setIsSidebarOpen(false)}
                     className={`w-full flex items-center space-x-3.5 px-4 py-3 rounded-2xl text-xs font-extrabold transition text-left cursor-pointer ${isActive
                       ? 'bg-[#1A1A1A] text-white shadow-sm'
                       : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
@@ -176,14 +192,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="flex-1 flex flex-col min-w-0">
 
         {/* HEADER */}
-        <header className="h-20 bg-white border-b border-gray-100 px-8 flex justify-between items-center z-45 shrink-0 select-none">
-          <div>
-            <h1 className="text-xl font-extrabold tracking-tight text-gray-900 capitalize">
-              {getPageTitle()}
-            </h1>
-            <p className="text-gray-400 text-[10px] font-extrabold uppercase tracking-wider mt-0.5">
-              Stayzo Control Terminal &bull; Live Status
-            </p>
+        <header className="h-20 bg-white border-b border-gray-100 px-6 sm:px-8 flex justify-between items-center z-30 shrink-0 select-none">
+          <div className="flex items-center space-x-3">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 -ml-2 text-gray-500 hover:text-gray-900 md:hidden outline-none cursor-pointer"
+            >
+              <Menu className="w-5.5 h-5.5" />
+            </button>
+            <div>
+              <h1 className="text-sm sm:text-xl font-extrabold tracking-tight text-gray-900 capitalize">
+                {getPageTitle()}
+              </h1>
+              <p className="text-gray-400 text-[8px] sm:text-[10px] font-extrabold uppercase tracking-wider mt-0.5">
+                Stayzo Control Terminal &bull; Live Status
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center space-x-6">
@@ -200,7 +224,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               }}
               className="flex items-center space-x-3 hover:opacity-80 transition text-left outline-none cursor-pointer"
             >
-              <div className="text-right">
+              <div className="text-right hidden sm:block">
                 <p className="text-xs font-extrabold text-gray-900">{adminUser?.firstName} {adminUser?.lastName}</p>
                 <p className="text-[10px] font-bold text-gray-400">{adminUser?.email}</p>
               </div>
@@ -212,7 +236,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
 
         {/* PAGE CONTENT */}
-        <main className="flex-1 overflow-y-auto p-8 max-w-7xl w-full mx-auto space-y-8">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-6 sm:space-y-8">
           {children}
         </main>
 

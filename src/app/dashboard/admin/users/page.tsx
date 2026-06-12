@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, ShieldCheck, CheckCircle2, Mail, Calendar } from 'lucide-react';
 
 interface UserAccount {
-  id: number;
+  id: string;
   name: string;
   email: string;
   role: 'Tenant' | 'Landlord';
@@ -16,23 +16,54 @@ interface UserAccount {
 export default function UsersPage() {
   const [userSearch, setUserSearch] = useState('');
   const [userFilter, setUserFilter] = useState<'All' | 'Tenant' | 'Landlord'>('All');
+  const [users, setUsers] = useState<UserAccount[]>([]);
 
-  const [users, setUsers] = useState<UserAccount[]>([
-    { id: 1, name: "Abiramy Selva", email: "abiramy@example.com", role: "Tenant", status: "Active", verified: true, joinedDate: "Sep 12 2024" },
-    { id: 2, name: "Nimal Bandara", email: "nimal@example.com", role: "Landlord", status: "Active", verified: true, joinedDate: "Oct 01 2024" },
-    { id: 3, name: "Anura Perera", email: "anura@example.com", role: "Landlord", status: "Active", verified: false, joinedDate: "Nov 15 2024" },
-    { id: 4, name: "Jane Doe", email: "jane@example.com", role: "Tenant", status: "Active", verified: true, joinedDate: "Jan 10 2025" },
-    { id: 5, name: "John Smith", email: "john@example.com", role: "Tenant", status: "Suspended", verified: false, joinedDate: "Feb 22 2025" },
-    { id: 6, name: "Aberam Krish", email: "aberam@example.com", role: "Landlord", status: "Active", verified: true, joinedDate: "Mar 05 2025" },
-    { id: 7, name: "Vishnnu Dev", email: "vishnnu@example.com", role: "Landlord", status: "Active", verified: false, joinedDate: "Apr 18 2025" },
-  ]);
-
-  const toggleVerifyUser = (id: number) => {
-    setUsers(users.map(u => u.id === id ? { ...u, verified: !u.verified } : u));
+  const fetchUsers = () => {
+    fetch('http://localhost:3001/api/auth/users')
+      .then(res => res.json())
+      .then((data: any[]) => {
+        const mapped = data.map((u: any) => ({
+          id: u.id,
+          name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Unknown User',
+          email: u.email,
+          role: (u.isOwner ? 'Landlord' : 'Tenant') as 'Landlord' | 'Tenant',
+          status: (u.status === 'Suspended' ? 'Suspended' : 'Active') as 'Active' | 'Suspended',
+          verified: !!u.verified,
+          joinedDate: new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        }));
+        setUsers(mapped);
+      })
+      .catch(console.error);
   };
 
-  const toggleSuspendUser = (id: number) => {
-    setUsers(users.map(u => u.id === id ? { ...u, status: u.status === 'Active' ? 'Suspended' : 'Active' } : u));
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const toggleVerifyUser = async (id: string) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/auth/users/${id}/toggle-verify`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        fetchUsers();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const toggleSuspendUser = async (id: string) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/auth/users/${id}/toggle-suspend`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        fetchUsers();
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const filteredUsers = users.filter(u => {
@@ -118,7 +149,7 @@ export default function UsersPage() {
                               </span>
                             )}
                           </div>
-                          <span className="text-[9px] text-gray-400 font-semibold block mt-1">ID: #USR-{1000 + account.id}</span>
+                          <span className="text-[9px] text-gray-400 font-semibold block mt-1">ID: #USR-{account.id.substring(0, 8).toUpperCase()}</span>
                         </div>
                       </div>
                     </td>
