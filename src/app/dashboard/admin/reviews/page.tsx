@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Star,
   Home,
@@ -24,82 +24,36 @@ interface ReviewItem {
 }
 
 export default function ReviewsPage() {
-  const [reviews, setReviews] = useState<ReviewItem[]>([
-    {
-      id: "REV-901",
-      authorName: "Sarah Connor",
-      authorEmail: "sarah@connor.com",
-      rating: 5,
-      sentiment: "Positive",
-      comment: "Absolutely breathtaking property. The Villa Tropical Cana has everything one could ask for. Spotless, quiet, and extremely modern. Highly recommended!",
-      targetName: "Villa Tropical Cana",
-      date: "May 23, 2026",
-      likes: 24,
-      status: "Approved"
-    },
-    {
-      id: "REV-902",
-      authorName: "John Connor",
-      authorEmail: "john.c@cyberdyne.com",
-      rating: 2,
-      sentiment: "Negative",
-      comment: "The place at 3940 N 16th St was highly unresponsive. We had to wait three hours in the rain for check-in. The water pressure in the shower was non-existent. Terrible experience.",
-      targetName: "3940 N 16th St",
-      date: "May 22, 2026",
-      likes: 8,
-      status: "Flagged"
-    },
-    {
-      id: "REV-903",
-      authorName: "Elena Rostova",
-      authorEmail: "elena@rostov.io",
-      rating: 4,
-      sentiment: "Positive",
-      comment: "Lovely stay at Colombo Heights Suite. Great view from the terrace and very convenient location. The apartment was clean and polite layout, though checkout was slightly rushed.",
-      targetName: "Colombo Heights Suite",
-      date: "May 20, 2026",
-      likes: 15,
-      status: "Approved"
-    },
-    {
-      id: "REV-904",
-      authorName: "Arthur Dent",
-      authorEmail: "arthur@guide.galaxy",
-      rating: 3,
-      sentiment: "Neutral",
-      comment: "The place at 46 Haunting St is mostly fine, but the instructions in the manual for the electrical panel were impossible to understand. Satisfactory but could use major clarity.",
-      targetName: "46 Haunting St, Somerville",
-      date: "May 18, 2026",
-      likes: 3,
-      status: "Pending"
-    },
-    {
-      id: "REV-905",
-      authorName: "Nimal Siri",
-      authorEmail: "nimal@colombo.com",
-      rating: 5,
-      sentiment: "Positive",
-      comment: "Absolutely stunning villa at Kandy Lakeview Mansion. Clean, peaceful, and surrounded by beautiful trees. Will definitely book again!",
-      targetName: "Kandy Lakeview Mansion",
-      date: "May 15, 2026",
-      likes: 19,
-      status: "Approved"
-    },
-    {
-      id: "REV-906",
-      authorName: "Lana Del",
-      authorEmail: "lana@coast.com",
-      rating: 2,
-      sentiment: "Negative",
-      comment: "Beautiful villa but the listing claimed it has a heated pool. It was freezing cold and the heating unit was broken. Felt highly deceptive.",
-      targetName: "Ahlers & Ogletree Villa",
-      date: "May 12, 2026",
-      likes: 11,
-      status: "Flagged"
-    }
-  ]);
-
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  const fetchReviews = () => {
+    setLoading(true);
+    fetch('http://localhost:3001/api/reviews', { cache: 'no-store' })
+      .then(res => res.json())
+      .then(data => {
+        const mapped = data.map((item: any) => ({
+          id: item.id,
+          authorName: item.authorName,
+          authorEmail: item.authorEmail,
+          rating: item.rating,
+          sentiment: item.sentiment,
+          comment: item.comment,
+          targetName: item.targetName,
+          date: new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          likes: item.likes,
+          status: item.status
+        }));
+        setReviews(mapped);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchReviews();
+  }, []);
 
   // Rating Distribution statistics
   const totalReviewsCount = reviews.length;
@@ -111,12 +65,30 @@ export default function ReviewsPage() {
     1: reviews.filter(r => r.rating === 1).length
   };
 
-  const handleApprove = (id: string) => {
-    setReviews(reviews.map(r => r.id === id ? { ...r, status: 'Approved' } : r));
+  const handleApprove = async (id: string) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/reviews/${id}/approve`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        fetchReviews();
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleFlag = (id: string) => {
-    setReviews(reviews.map(r => r.id === id ? { ...r, status: 'Flagged' } : r));
+  const handleFlag = async (id: string) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/reviews/${id}/flag`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        fetchReviews();
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   // Filter logic
@@ -127,6 +99,11 @@ export default function ReviewsPage() {
       r.targetName.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
   });
+
+  const averageRating = reviews.length > 0 
+    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(2)
+    : "0.00";
+  const avgStars = Math.round(Number(averageRating));
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -139,12 +116,12 @@ export default function ReviewsPage() {
           <div className="space-y-3">
             <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest block">Average Property Score</span>
             <div className="flex items-baseline space-x-2">
-              <h3 className="text-4xl sm:text-5xl font-extrabold text-gray-900 tracking-tight">4.72</h3>
+              <h3 className="text-4xl sm:text-5xl font-extrabold text-gray-900 tracking-tight">{averageRating}</h3>
               <span className="text-gray-400 font-extrabold text-lg">/ 5</span>
             </div>
             <div className="flex items-center space-x-1 text-amber-400">
               {[1, 2, 3, 4, 5].map((s) => (
-                <Star key={s} className="w-5 h-5 fill-amber-400 stroke-amber-400" />
+                <Star key={s} className={`w-5 h-5 ${s <= avgStars ? 'fill-amber-400 stroke-amber-400' : 'text-gray-200'}`} />
               ))}
             </div>
           </div>

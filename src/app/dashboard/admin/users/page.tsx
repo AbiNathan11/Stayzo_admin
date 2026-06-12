@@ -19,7 +19,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState<UserAccount[]>([]);
 
   const fetchUsers = () => {
-    fetch('http://localhost:3001/api/auth/users')
+    fetch('http://localhost:3001/api/auth/users', { cache: 'no-store' })
       .then(res => res.json())
       .then((data: any[]) => {
         const mapped = data.map((u: any) => ({

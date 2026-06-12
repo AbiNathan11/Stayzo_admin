@@ -22,7 +22,7 @@ export default function AdminOverviewDashboard() {
   });
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/auth/stats')
+    fetch('http://localhost:3001/api/auth/stats', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         setStatsData({

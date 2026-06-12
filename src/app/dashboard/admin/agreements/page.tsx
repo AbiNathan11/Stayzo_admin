@@ -42,7 +42,7 @@ export default function AgreementsPage() {
 
   const fetchAgreements = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/agreements');
+      const res = await fetch('http://localhost:3001/api/agreements', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setAgreements(data);

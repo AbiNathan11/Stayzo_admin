@@ -36,7 +36,7 @@ export default function MessagesPage() {
   const [replyLoading, setReplyLoading] = useState(false);
 
   const fetchMessages = () => {
-    fetch('http://localhost:3001/api/contact')
+    fetch('http://localhost:3001/api/contact', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         const mapped = data.map((msg: any) => {

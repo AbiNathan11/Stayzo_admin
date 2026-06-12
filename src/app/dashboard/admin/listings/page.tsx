@@ -15,8 +15,8 @@ export default function ListingInteractionsPage() {
     const [listings, setListings] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
 
-    React.useEffect(() => {
-        fetch('http://localhost:3001/api/properties')
+    const fetchListings = () => {
+        fetch('http://localhost:3001/api/properties', { cache: 'no-store' })
             .then(res => res.json())
             .then(data => {
                 const mapped = data.map((item: any) => ({
@@ -27,23 +27,30 @@ export default function ListingInteractionsPage() {
                     location: `${item.city || 'Anytown'}, ${item.state || 'ST'}`,
                     price: `$${item.price}/mo`,
                     fraudScore: Math.floor(Math.random() * 25), // Mock fraud score for demo
-                    status: item.status || 'Active',
+                    status: item.status === 'Disabled' ? 'Disabled' : 'Active',
                     image: item.images?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=400&q=80',
                     reason: 'Loaded from database'
                 }));
                 setListings(mapped);
             })
             .catch(console.error);
+    };
+
+    React.useEffect(() => {
+        fetchListings();
     }, []);
 
-    const toggleStatus = (id: string) => {
-        setListings(listings.map((item) => {
-            if (item.id === id) {
-                const newStatus = item.status === 'Active' ? 'Disabled' : 'Active';
-                return { ...item, status: newStatus };
+    const toggleStatus = async (id: string) => {
+        try {
+            const res = await fetch(`http://localhost:3001/api/properties/${id}/toggle-status`, {
+                method: 'POST'
+            });
+            if (res.ok) {
+                fetchListings();
             }
-            return item;
-        }));
+        } catch (err) {
+            console.error(err);
+        }
     };
 
     const filteredListings = listings.filter((item) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   DollarSign,
   ArrowDownLeft,
@@ -30,94 +30,32 @@ export default function ActivitiesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('All');
   const [selectedFinancial, setSelectedFinancial] = useState<FinancialTransaction | null>(null);
+  const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data for Incoming Payments (Listing Fees and Ad Boosting)
-  const [transactions] = useState<FinancialTransaction[]>([
-    {
-      id: "TXN-884920",
-      type: "Listing Fee",
-      amount: 4500.00,
-      user: "Abiramy Selva",
-      email: "abiramy@example.com",
-      targetListing: "Villa Tropical Cana",
-      status: "Cleared",
-      date: "May 23, 2026",
-      time: "10:14 PM",
-      reference: "ch_3Mv8sLFkzoI9xY901u87b",
-      paymentMethod: "Visa ending in 4242",
-      ipAddress: "192.168.1.115"
-    },
-    {
-      id: "TXN-884921",
-      type: "Ad Boosting",
-      amount: 3500.00,
-      user: "Nimal Bandara",
-      email: "nimal@example.com",
-      targetListing: "3940 N 16th St",
-      status: "Cleared",
-      date: "May 23, 2026",
-      time: "08:42 PM",
-      reference: "po_1Mv7uVFkzoI9xY827f8a9",
-      paymentMethod: "Visa ending in 9022",
-      ipAddress: "203.94.75.18"
-    },
-    {
-      id: "TXN-884924",
-      type: "Listing Fee",
-      amount: 8500.00,
-      user: "Michael Scott",
-      email: "michael@dundermifflin.com",
-      targetListing: "Scranton Business Park",
-      status: "Pending",
-      date: "May 21, 2026",
-      time: "09:30 AM",
-      reference: "ch_2Nv9aZFkzoI4xY552k11x",
-      paymentMethod: "American Express ending in 2004",
-      ipAddress: "172.56.21.8"
-    },
-    {
-      id: "TXN-884925",
-      type: "Ad Boosting",
-      amount: 5200.00,
-      user: "Anura Perera",
-      email: "anura@example.com",
-      targetListing: "Kandy Lakeview Mansion",
-      status: "Cleared",
-      date: "May 20, 2026",
-      time: "04:12 PM",
-      reference: "po_9Kz4wYFkzoI3eY711s99w",
-      paymentMethod: "Visa ending in 4431",
-      ipAddress: "220.247.234.112"
-    },
-    {
-      id: "TXN-884926",
-      type: "Listing Fee",
-      amount: 6000.00,
-      user: "Jane Doe",
-      email: "jane@example.com",
-      targetListing: "Serene Beachfront Oasis Villa",
-      status: "Cleared",
-      date: "May 18, 2026",
-      time: "02:22 PM",
-      reference: "ch_4Mx3sLFkzoI1xY903u77c",
-      paymentMethod: "Mastercard ending in 1109",
-      ipAddress: "192.168.1.115"
-    },
-    {
-      id: "TXN-884927",
-      type: "Ad Boosting",
-      amount: 2500.00,
-      user: "Zia Siddiki",
-      email: "siddikia11@gmail.com",
-      targetListing: "46 Haunting St, Somerville",
-      status: "Cleared",
-      date: "May 15, 2026",
-      time: "11:05 AM",
-      reference: "ch_9Kx9wZFkzoI3xY118k55b",
-      paymentMethod: "Visa ending in 8830",
-      ipAddress: "172.56.21.8"
-    }
-  ]);
+  useEffect(() => {
+    fetch('http://localhost:3001/api/transactions', { cache: 'no-store' })
+      .then(res => res.json())
+      .then(data => {
+        const mapped = data.map((item: any) => ({
+          id: item.id,
+          type: item.type,
+          amount: item.amount,
+          user: item.user,
+          email: item.email,
+          targetListing: item.targetListing,
+          status: item.status,
+          date: new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          time: new Date(item.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          reference: item.reference,
+          paymentMethod: item.paymentMethod,
+          ipAddress: item.ipAddress
+        }));
+        setTransactions(mapped);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
   // Filtering Logic
   const filteredTransactions = transactions.filter(t => {
