@@ -12,6 +12,7 @@ import {
   User,
   Info
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface ContactMessage {
   id: string;
@@ -129,17 +130,17 @@ export default function MessagesPage() {
         body: JSON.stringify({ replyMessage: replyText })
       });
       if (res.ok) {
-        alert("Reply sent successfully via email!");
+        toast.success("Reply sent successfully via email!");
         setReplyText('');
         fetchMessages(); // Refresh message list status
         setSelectedMessage({ ...selectedMessage, status: 'Read' });
       } else {
         const errData = await res.json();
-        alert(`Failed to send reply: ${errData.error || 'Unknown error'}`);
+        toast.error(`Failed to send reply: ${errData.error || 'Unknown error'}`);
       }
     } catch (err) {
       console.error(err);
-      alert("An error occurred while sending the reply.");
+      toast.error("An error occurred while sending the reply.");
     } finally {
       setReplyLoading(false);
     }

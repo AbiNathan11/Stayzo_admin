@@ -30,10 +30,36 @@ interface LeaseAgreement {
   contractText: string;
   landlordSig?: string;
   tenantSig?: string;
+  visualTheme?: string;
   createdAt: string;
 }
 
 export default function AgreementsPage() {
+  const getThemeClass = (theme: string) => {
+    switch (theme) {
+      case 'classic-legal':
+        return 'font-serif border-4 border-double border-gray-800 p-8 md:p-12 bg-white text-gray-900 leading-relaxed text-justify';
+      case 'modern-clean':
+        return 'font-sans p-8 md:p-10 bg-white text-gray-700 leading-loose text-left';
+      case 'executive-elite':
+        return 'font-serif border-l-8 border-gray-900 p-8 md:p-11 bg-[#FAFAFA] text-slate-800 leading-normal text-justify';
+      default:
+        return 'font-serif border-4 border-double border-gray-800 p-8 md:p-12 bg-white text-gray-900 leading-relaxed text-justify';
+    }
+  };
+
+  const cleanContractText = (text: string) => {
+    if (!text) return '';
+    const lastLandlordIdx = text.lastIndexOf("LANDLORD:");
+    if (lastLandlordIdx !== -1 && lastLandlordIdx > text.length - 400) {
+      const afterText = text.substring(lastLandlordIdx);
+      if (afterText.includes("TENANT:") || afterText.includes("Signature")) {
+        return text.substring(0, lastLandlordIdx).trim();
+      }
+    }
+    return text;
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'All' | 'Active' | 'Pending Signatures' | 'Expired'>('All');
   const [agreements, setAgreements] = useState<LeaseAgreement[]>([]);
@@ -278,8 +304,32 @@ export default function AgreementsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               
               {/* Left Column: Contract text */}
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 h-[420px] overflow-y-auto font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-slate-800 shadow-inner">
-                {selectedAgreement.contractText}
+              <div className={`h-[420px] overflow-y-auto rounded-2xl border border-slate-200 flex flex-col justify-between ${getThemeClass(selectedAgreement.visualTheme || '')} shadow-inner`}>
+                <div className="whitespace-pre-wrap text-[13px]">{cleanContractText(selectedAgreement.contractText)}</div>
+                
+                {/* Signatures inside the document layout */}
+                <div className="mt-12 pt-8 border-t border-gray-200 grid grid-cols-2 gap-8 text-[12px] font-sans text-left">
+                  <div>
+                    <p className="text-gray-400 text-[9px] uppercase tracking-wider mb-2">Landlord Representative</p>
+                    {selectedAgreement.landlordSig ? (
+                      <img src={selectedAgreement.landlordSig} alt="Landlord Signature" className="h-10 object-contain my-1" />
+                    ) : (
+                      <p className="text-[10px] font-bold text-gray-400 italic">Signature Pending</p>
+                    )}
+                    <div className="border-b border-gray-400 w-full h-1 mt-1" />
+                    <p className="font-bold mt-1 text-[11px] text-[#1A1A1A]">{selectedAgreement.landlordName}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-[9px] uppercase tracking-wider mb-2">Tenant Signature</p>
+                    {selectedAgreement.tenantSig ? (
+                      <img src={selectedAgreement.tenantSig} alt="Tenant Signature" className="h-10 object-contain my-1" />
+                    ) : (
+                      <p className="text-[10px] font-bold text-gray-400 italic">Signature Pending</p>
+                    )}
+                    <div className="border-b border-gray-400 w-full h-1 mt-1" />
+                    <p className="font-bold mt-1 text-[11px] text-[#1A1A1A]">{selectedAgreement.tenantName}</p>
+                  </div>
+                </div>
               </div>
 
               {/* Right Column: Signatures & metadata details */}
@@ -357,14 +407,8 @@ export default function AgreementsPage() {
 
                 <div className="flex gap-3 pt-4 border-t border-gray-100">
                   <button
-                    onClick={() => window.print()}
-                    className="flex-1 border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-2xl py-3 text-xs font-bold transition flex items-center justify-center gap-1.5"
-                  >
-                    Download PDF
-                  </button>
-                  <button
                     onClick={() => setSelectedAgreement(null)}
-                    className="flex-1 bg-[#1A1A1A] hover:bg-black text-white rounded-2xl py-3 text-xs font-bold transition shadow-sm"
+                    className="w-full bg-[#1A1A1A] hover:bg-black text-white rounded-2xl py-3 text-xs font-bold transition shadow-sm cursor-pointer text-center"
                   >
                     Close Inspection
                   </button>
