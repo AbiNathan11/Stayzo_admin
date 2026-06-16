@@ -82,7 +82,7 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFB] text-[#1A1A1A] font-sans selection:bg-[#1A1A1A] selection:text-white flex flex-col justify-between">
-      <Toaster position="top-right" />
+      <Toaster position="top-right" toastOptions={{ style: { background: '#1A1A1A', color: '#fff', fontWeight: 700, fontSize: '13px', borderRadius: '12px' } }} />
 
       {/* Simple Header matching the navbar branding */}
       <header className="w-full bg-white border-b border-gray-100 py-4 px-6 sm:px-8 flex justify-between items-center z-50 shrink-0">
