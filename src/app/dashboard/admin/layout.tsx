@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 // Added Building2 icon for the Listing Interactions item
 import { LayoutDashboard, Users, Activity, FileText, MessageSquare, LogOut, Building2, Mail, X, Menu } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -79,7 +80,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editForm.firstName) {
-      alert("First name is required.");
+      toast.error("First name is required.");
       return;
     }
     const token = sessionStorage.getItem('stayzo_token');
@@ -107,9 +108,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         profileImage: data.user.profileImage
       });
       setIsEditing(false);
-      alert("Profile details updated successfully.");
+      toast.success("Profile details updated successfully.");
     } catch (err: any) {
-      alert(err.message || 'An error occurred.');
+      toast.error(err.message || 'An error occurred.');
     }
   };
 
