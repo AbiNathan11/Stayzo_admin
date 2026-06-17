@@ -197,110 +197,107 @@ export default function ReviewsPage() {
           </div>
         </div>
 
-        {/* REVIEWS GRID LAYOUT */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filteredReviews.length === 0 ? (
-            <div className="col-span-full text-center py-12 text-gray-400 font-semibold">
-              No property reviews found matching your search.
-            </div>
-          ) : (
-            filteredReviews.map((item) => (
-              <div
-                key={item.id}
-                className={`border rounded-3xl p-6 transition-all duration-300 flex flex-col justify-between space-y-5 hover:shadow-md ${
-                  item.status === 'Flagged'
-                    ? 'bg-red-50/5 border-red-100'
-                    : 'bg-white border-gray-100 hover:border-gray-200'
-                }`}
-              >
-                {/* Upper Section */}
-                <div className="space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center space-x-3.5">
-                      <div className="w-10 h-10 rounded-2xl bg-[#1A1A1A] text-white flex items-center justify-center font-extrabold text-sm select-none">
-                        {item.authorName.charAt(0).toUpperCase()}
+        {/* REVIEWS TABLE LAYOUT */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs font-bold">
+            <thead>
+              <tr className="border-b border-gray-100 text-gray-400 uppercase tracking-widest text-[9px]">
+                <th className="py-4 px-4">Author Details</th>
+                <th className="py-4 px-4">Property</th>
+                <th className="py-4 px-4">Rating</th>
+                <th className="py-4 px-4">Comment</th>
+                <th className="py-4 px-4">Sentiment</th>
+                <th className="py-4 px-4 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filteredReviews.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-12 text-gray-400 font-semibold">
+                    No property reviews found matching your search.
+                  </td>
+                </tr>
+              ) : (
+                filteredReviews.map((item) => (
+                  <tr
+                    key={item.id}
+                    className={`hover:bg-[#F8FAFB]/70 transition group ${
+                      item.status === 'Flagged' ? 'bg-red-50/10' : ''
+                    }`}
+                  >
+                    <td className="py-4 px-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 rounded-xl bg-[#1A1A1A] text-white flex items-center justify-center font-extrabold text-xs select-none">
+                          {item.authorName.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-gray-950 font-extrabold">{item.authorName}</p>
+                          <p className="text-gray-400 font-semibold text-[9px] mt-0.5">{item.authorEmail}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className="font-extrabold text-sm text-gray-900 leading-tight">{item.authorName}</h4>
-                        <p className="text-[10px] text-gray-400 font-semibold mt-0.5">{item.authorEmail}</p>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex items-center space-x-2">
+                        <Home className="w-3.5 h-3.5 text-indigo-500" />
+                        <div>
+                          <p className="text-gray-800 font-bold max-w-[150px] truncate">{item.targetName}</p>
+                          <p className="text-gray-400 font-semibold text-[9px] mt-0.5">{item.date}</p>
+                        </div>
                       </div>
-                    </div>
-                    
-                    <span className={`px-2.5 py-1 rounded-full text-[9px] font-extrabold uppercase tracking-wide border ${
-                      item.sentiment === 'Positive' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                      item.sentiment === 'Neutral' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                      'bg-rose-50 text-rose-600 border-rose-100'
-                    }`}>
-                      {item.sentiment}
-                    </span>
-                  </div>
-
-                  {/* Target Property Card */}
-                  <div className="bg-[#F8FAFC] rounded-2xl p-4 border border-gray-50 flex items-center justify-between">
-                    <div className="flex items-center space-x-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
-                        <Home className="w-4.5 h-4.5 text-purple-600" />
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex items-center space-x-0.5">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={`w-3.5 h-3.5 ${s <= item.rating ? 'fill-amber-400 stroke-amber-400' : 'text-gray-200'}`}
+                          />
+                        ))}
                       </div>
-                      <div className="min-w-0">
-                        <span className="text-[8px] text-gray-400 font-extrabold uppercase tracking-widest block">Reviewed Property</span>
-                        <span className="font-extrabold text-xs text-gray-900 truncate block">{item.targetName}</span>
+                    </td>
+                    <td className="py-4 px-4 max-w-xs">
+                      <p className="text-gray-700 font-semibold text-[11px] italic truncate">"{item.comment}"</p>
+                    </td>
+                    <td className="py-4 px-4">
+                      <span className={`px-2 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-wide border ${
+                        item.sentiment === 'Positive' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                        item.sentiment === 'Neutral' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                        'bg-rose-50 text-rose-600 border-rose-100'
+                      }`}>
+                        {item.sentiment}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex items-center justify-center space-x-2">
+                        <button
+                          onClick={() => handleApprove(item.id)}
+                          title="Set Visible"
+                          className={`p-1.5 rounded-lg font-extrabold transition cursor-pointer flex items-center justify-center border ${
+                            item.status === 'Approved'
+                              ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                              : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleFlag(item.id)}
+                          title="Set Hidden"
+                          className={`p-1.5 rounded-lg font-extrabold transition cursor-pointer flex items-center justify-center border ${
+                            item.status === 'Flagged'
+                              ? 'bg-red-500 text-white border-red-500 hover:bg-red-600'
+                              : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-red-500'
+                          }`}
+                        >
+                          <EyeOff className="w-4 h-4" />
+                        </button>
                       </div>
-                    </div>
-                    <span className="text-gray-400 text-[9px] font-extrabold shrink-0 ml-2">{item.date}</span>
-                  </div>
-
-                  {/* Rating stars & comment text */}
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-1 select-none">
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <Star
-                          key={s}
-                          className={`w-4 h-4 ${s <= item.rating ? 'fill-amber-400 stroke-amber-400' : 'text-gray-200'}`}
-                        />
-                      ))}
-                    </div>
-                    <p className="text-xs font-semibold text-gray-700 leading-relaxed italic select-text">
-                      "{item.comment}"
-                    </p>
-                  </div>
-                </div>
-
-                {/* Bottom Controls */}
-                <div className="pt-4 border-t border-gray-50 flex items-center justify-between gap-4 text-xs select-none">
-                  <div className="flex items-center text-[10px] text-gray-400 font-extrabold space-x-1">
-                    <ThumbsUp className="w-3.5 h-3.5 text-gray-300" />
-                    <span>{item.likes} helpful marks</span>
-                  </div>
-
-                  <div className="flex items-center space-x-2 shrink-0">
-                    <button
-                      onClick={() => handleApprove(item.id)}
-                      className={`px-3 py-1.5 rounded-xl font-extrabold transition cursor-pointer flex items-center space-x-1.5 border text-[10px] uppercase tracking-wider ${
-                        item.status === 'Approved'
-                          ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                          : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      <span>Visible</span>
-                    </button>
-                    <button
-                      onClick={() => handleFlag(item.id)}
-                      className={`px-3 py-1.5 rounded-xl font-extrabold transition cursor-pointer flex items-center space-x-1.5 border text-[10px] uppercase tracking-wider ${
-                        item.status === 'Flagged'
-                          ? 'bg-red-500 text-white border-red-500 hover:bg-red-600'
-                          : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-red-500'
-                      }`}
-                    >
-                      <EyeOff className="w-3.5 h-3.5" />
-                      <span>Hidden</span>
-                    </button>
-                  </div>
-                </div>
-
-              </div>
-            ))
-          )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
 
       </div>
