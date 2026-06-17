@@ -126,12 +126,12 @@ export default function ActivitiesPage() {
         <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition duration-300 flex items-start justify-between">
           <div className="space-y-3">
             <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest block">Ad Boosting Payments</span>
-            <h3 className="text-3xl font-extrabold text-purple-600 tracking-tight">{boostingPercent}%</h3>
+            <h3 className="text-3xl font-extrabold text-indigo-600 tracking-tight">{boostingPercent}%</h3>
             <p className="text-xs font-bold text-gray-500">
               Rs {boostingTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })} total
             </p>
           </div>
-          <div className="w-10 h-10 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
             <Sparkles className="w-5 h-5" />
           </div>
         </div>
@@ -154,7 +154,7 @@ export default function ActivitiesPage() {
           </div>
           <div 
             style={{ width: `${boostingPercent}%` }} 
-            className="h-full bg-purple-500 flex items-center justify-center text-[9px] font-black text-white transition-all duration-500"
+            className="h-full bg-indigo-500 flex items-center justify-center text-[9px] font-black text-white transition-all duration-500"
             title={`Ad Boosting: ${boostingPercent}%`}
           >
             {boostingPercent}% Ad Boosting
@@ -234,7 +234,7 @@ export default function ActivitiesPage() {
                     <td className="py-4 px-4">
                       <div className="flex items-center space-x-2">
                         <span className={`w-8 h-8 rounded-xl flex items-center justify-center border ${
-                          tx.type === 'Listing Fee' ? 'bg-blue-50 border-blue-100 text-blue-600' : 'bg-purple-50 border-purple-100 text-purple-600'
+                          tx.type === 'Listing Fee' ? 'bg-blue-50 border-blue-100 text-blue-600' : 'bg-indigo-50 border-indigo-100 text-indigo-600'
                         }`}>
                           <ArrowDownLeft className="w-3.5 h-3.5" />
                         </span>
