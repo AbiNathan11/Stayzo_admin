@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Cookies from 'js-cookie';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 // Added Building2 icon for the Listing Interactions item
@@ -20,7 +21,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const fetchProfile = () => {
-    const token = sessionStorage.getItem('stayzo_token');
+    const token = Cookies.get('stayzo_token');
     if (!token) return;
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
@@ -56,7 +57,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   useEffect(() => {
-    const token = sessionStorage.getItem('stayzo_token');
+    const token = Cookies.get('stayzo_token');
     if (!token) {
       window.location.href = '/login';
       return;
@@ -86,7 +87,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return;
     }
     setLoading(true);
-    const token = sessionStorage.getItem('stayzo_token');
+    const token = Cookies.get('stayzo_token');
     try {
       const res = await fetch('http://localhost:3001/api/auth/update-profile', {
         method: 'PUT',
@@ -131,7 +132,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem('stayzo_token');
+    Cookies.remove('stayzo_token');
+    Cookies.remove('stayzo_refresh_token');
     localStorage.removeItem('stayzo_admin_profile');
     window.location.href = '/login';
   };
