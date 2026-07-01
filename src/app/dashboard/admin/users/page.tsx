@@ -1,38 +1,74 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Search, ShieldCheck, CheckCircle2, Mail, Calendar } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, ShieldCheck, CheckCircle2, Mail, Calendar, Eye, X } from 'lucide-react';
 
 interface UserAccount {
-  id: number;
+  id: string;
   name: string;
   email: string;
   role: 'Tenant' | 'Landlord';
   status: 'Active' | 'Suspended';
   verified: boolean;
   joinedDate: string;
+  nicFront: string | null;
+  nicBack: string | null;
 }
 
 export default function UsersPage() {
   const [userSearch, setUserSearch] = useState('');
   const [userFilter, setUserFilter] = useState<'All' | 'Tenant' | 'Landlord'>('All');
+  const [users, setUsers] = useState<UserAccount[]>([]);
+  const [activeDetailUser, setActiveDetailUser] = useState<UserAccount | null>(null);
 
-  const [users, setUsers] = useState<UserAccount[]>([
-    { id: 1, name: "Abiramy Selva", email: "abiramy@example.com", role: "Tenant", status: "Active", verified: true, joinedDate: "Sep 12 2024" },
-    { id: 2, name: "Nimal Bandara", email: "nimal@example.com", role: "Landlord", status: "Active", verified: true, joinedDate: "Oct 01 2024" },
-    { id: 3, name: "Anura Perera", email: "anura@example.com", role: "Landlord", status: "Active", verified: false, joinedDate: "Nov 15 2024" },
-    { id: 4, name: "Jane Doe", email: "jane@example.com", role: "Tenant", status: "Active", verified: true, joinedDate: "Jan 10 2025" },
-    { id: 5, name: "John Smith", email: "john@example.com", role: "Tenant", status: "Suspended", verified: false, joinedDate: "Feb 22 2025" },
-    { id: 6, name: "Aberam Krish", email: "aberam@example.com", role: "Landlord", status: "Active", verified: true, joinedDate: "Mar 05 2025" },
-    { id: 7, name: "Vishnnu Dev", email: "vishnnu@example.com", role: "Landlord", status: "Active", verified: false, joinedDate: "Apr 18 2025" },
-  ]);
-
-  const toggleVerifyUser = (id: number) => {
-    setUsers(users.map(u => u.id === id ? { ...u, verified: !u.verified } : u));
+  const fetchUsers = () => {
+    fetch('http://localhost:3001/api/auth/users', { cache: 'no-store' })
+      .then(res => res.json())
+      .then((data: any[]) => {
+        const mapped = data.map((u: any) => ({
+          id: u.id,
+          name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Unknown User',
+          email: u.email,
+          role: (u.isOwner ? 'Landlord' : 'Tenant') as 'Landlord' | 'Tenant',
+          status: (u.status === 'Suspended' ? 'Suspended' : 'Active') as 'Active' | 'Suspended',
+          verified: !!u.verified,
+          joinedDate: new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          nicFront: u.nicFront,
+          nicBack: u.nicBack
+        }));
+        setUsers(mapped);
+      })
+      .catch(console.error);
   };
 
-  const toggleSuspendUser = (id: number) => {
-    setUsers(users.map(u => u.id === id ? { ...u, status: u.status === 'Active' ? 'Suspended' : 'Active' } : u));
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const toggleVerifyUser = async (id: string) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/auth/users/${id}/toggle-verify`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        fetchUsers();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const toggleSuspendUser = async (id: string) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/auth/users/${id}/toggle-suspend`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        fetchUsers();
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const filteredUsers = users.filter(u => {
@@ -86,7 +122,6 @@ export default function UsersPage() {
                 <th className="py-4 px-6">User Details</th>
                 <th className="py-4 px-6">Email Address</th>
                 <th className="py-4 px-6">Account Role</th>
-                <th className="py-4 px-6">Joined Date</th>
                 <th className="py-4 px-6">Account Status</th>
                 <th className="py-4 px-6 text-center">Actions</th>
               </tr>
@@ -94,7 +129,7 @@ export default function UsersPage() {
             <tbody className="divide-y divide-gray-50">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-gray-400 font-semibold">
+                  <td colSpan={5} className="text-center py-12 text-gray-400 font-semibold">
                     No user accounts found matching your search.
                   </td>
                 </tr>
@@ -118,7 +153,7 @@ export default function UsersPage() {
                               </span>
                             )}
                           </div>
-                          <span className="text-[9px] text-gray-400 font-semibold block mt-1">ID: #USR-{1000 + account.id}</span>
+                          <span className="text-[9px] text-gray-400 font-semibold block mt-1">ID: #USR-{account.id.substring(0, 8).toUpperCase()}</span>
                         </div>
                       </div>
                     </td>
@@ -135,12 +170,6 @@ export default function UsersPage() {
                         {account.role}
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-gray-400 font-semibold">
-                      <div className="flex items-center space-x-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-gray-300" />
-                        <span>{account.joinedDate}</span>
-                      </div>
-                    </td>
                     <td className="py-4 px-6">
                       <span className={`px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase border ${account.status === 'Active' 
                         ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
@@ -148,11 +177,18 @@ export default function UsersPage() {
                         {account.status}
                       </span>
                     </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center justify-center space-x-2 text-xs select-none">
+                    <td className="py-4 px-6 whitespace-nowrap">
+                      <div className="flex items-center justify-center space-x-2 text-xs select-none whitespace-nowrap">
+                        <button
+                          onClick={() => setActiveDetailUser(account)}
+                          className="px-3 py-1.5 rounded-xl font-extrabold transition cursor-pointer border bg-white border-gray-200 text-gray-700 hover:bg-gray-50 flex items-center space-x-1 whitespace-nowrap"
+                        >
+                          <Eye className="w-3.5 h-3.5 shrink-0" />
+                          <span>More Details</span>
+                        </button>
                         <button
                           onClick={() => toggleVerifyUser(account.id)}
-                          className={`px-3 py-1.5 rounded-xl font-extrabold transition cursor-pointer border flex items-center space-x-1 ${account.verified 
+                          className={`px-3 py-1.5 rounded-xl font-extrabold transition cursor-pointer border flex items-center space-x-1 whitespace-nowrap ${account.verified 
                             ? 'bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-100' 
                             : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
                         >
@@ -161,7 +197,7 @@ export default function UsersPage() {
                         </button>
                         <button
                           onClick={() => toggleSuspendUser(account.id)}
-                          className={`px-3 py-1.5 rounded-xl font-extrabold transition cursor-pointer border ${account.status === 'Suspended' 
+                          className={`px-3 py-1.5 rounded-xl font-extrabold transition cursor-pointer border whitespace-nowrap ${account.status === 'Suspended' 
                             ? 'bg-red-500 border-red-500 text-white hover:bg-red-600' 
                             : 'bg-white border-red-200 text-red-500 hover:bg-red-50'}`}
                         >
@@ -176,6 +212,158 @@ export default function UsersPage() {
           </table>
         </div>
       </div>
+
+      {/* Sliding Details Drawer (on the right side) */}
+      {activeDetailUser && (
+        <>
+          {/* Backdrop Overlay */}
+          <div 
+            className="fixed inset-0 bg-black/30 backdrop-blur-xs z-40 animate-in fade-in duration-200"
+            onClick={() => setActiveDetailUser(null)}
+          />
+          
+          {/* Side Drawer Container */}
+          <div className="fixed top-0 right-0 h-full w-[460px] max-w-full bg-white shadow-[-8px_0_24px_rgba(0,0,0,0.08)] z-50 flex flex-col border-l border-gray-100 animate-in slide-in-from-right duration-300">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-50 flex items-center justify-between">
+              <div>
+                <h4 className="font-extrabold text-base text-gray-900">User Account Details</h4>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">Audit log and identity documents</p>
+              </div>
+              <button
+                onClick={() => setActiveDetailUser(null)}
+                className="text-gray-400 hover:text-gray-900 cursor-pointer p-1.5 rounded-lg hover:bg-gray-50 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Profile Card */}
+              <div className="flex items-center space-x-4 bg-gray-50/50 border border-gray-100 rounded-2xl p-4">
+                <div className="w-14 h-14 rounded-2xl bg-white text-[#1A1A1A] border border-gray-200/50 flex items-center justify-center font-extrabold text-xl select-none shadow-xs">
+                  {activeDetailUser.name.charAt(0)}
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-extrabold text-gray-900 text-base leading-none">{activeDetailUser.name}</span>
+                    {activeDetailUser.verified && (
+                      <ShieldCheck className="w-4 h-4 text-emerald-500 fill-emerald-500/10 shrink-0" />
+                    )}
+                  </div>
+                  <span className="text-[10px] text-gray-400 font-semibold block">ID: #USR-{activeDetailUser.id.substring(0, 8).toUpperCase()}</span>
+                  <div className="flex gap-2 mt-1">
+                    <span className={`px-2 py-0.5 rounded-md text-[8px] font-extrabold uppercase border ${activeDetailUser.role === 'Landlord' 
+                      ? 'bg-purple-50 text-purple-600 border-purple-100' 
+                      : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
+                      {activeDetailUser.role}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-md text-[8px] font-extrabold uppercase border ${activeDetailUser.status === 'Active' 
+                      ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                      : 'bg-red-50 text-red-600 border-red-100'}`}>
+                      {activeDetailUser.status}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Core Information Section */}
+              <div className="space-y-4">
+                <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-2">Information Log</h5>
+                
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div className="space-y-1 bg-gray-50/20 p-3 rounded-xl border border-gray-50/50">
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Email Address</span>
+                    <span className="font-extrabold text-gray-700 break-all">{activeDetailUser.email}</span>
+                  </div>
+                  <div className="space-y-1 bg-gray-50/20 p-3 rounded-xl border border-gray-50/50">
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Joined Date</span>
+                    <span className="font-extrabold text-gray-700">{activeDetailUser.joinedDate}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Identity Documents Section */}
+              <div className="space-y-4">
+                <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-2">Identity Verification (NIC)</h5>
+
+                <div className="space-y-4">
+                  {/* NIC Front */}
+                  <div className="space-y-2">
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">NIC Front Copy</span>
+                    <div className="bg-gray-50 border border-gray-100 rounded-2xl overflow-hidden flex items-center justify-center min-h-[140px] relative">
+                      {activeDetailUser.nicFront ? (
+                        <img
+                          src={activeDetailUser.nicFront}
+                          alt="NIC Front"
+                          className="max-h-[220px] w-full object-contain"
+                        />
+                      ) : (
+                        <div className="text-gray-400 text-xs font-semibold py-8 text-center">No Front Copy Uploaded</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* NIC Back */}
+                  <div className="space-y-2">
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">NIC Back Copy</span>
+                    <div className="bg-gray-50 border border-gray-100 rounded-2xl overflow-hidden flex items-center justify-center min-h-[140px] relative">
+                      {activeDetailUser.nicBack ? (
+                        <img
+                          src={activeDetailUser.nicBack}
+                          alt="NIC Back"
+                          className="max-h-[220px] w-full object-contain"
+                        />
+                      ) : (
+                        <div className="text-gray-400 text-xs font-semibold py-8 text-center">No Back Copy Uploaded</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-yellow-50 border border-yellow-100 rounded-2xl p-4 text-[10px] font-semibold text-yellow-800 leading-relaxed flex items-start gap-2.5">
+                  <span className="text-sm">⚠️</span>
+                  <div>
+                    <p className="font-bold">Watermarked Security Protection</p>
+                    <p className="text-yellow-600 mt-0.5">These identity documents have been watermarked at database level upon receipt to prevent misuse. Under no circumstances should they be saved or distributed outside Stayzo verification procedures.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions Panel Footer */}
+            <div className="p-6 border-t border-gray-50 bg-gray-50/30 flex items-center gap-3">
+              <button
+                onClick={() => {
+                  toggleVerifyUser(activeDetailUser.id);
+                  // Refresh the activeDetailUser in local state so the drawer UI updates immediately!
+                  setActiveDetailUser(prev => prev ? { ...prev, verified: !prev.verified } : null);
+                }}
+                className={`flex-1 py-3 rounded-xl font-extrabold text-xs transition border flex items-center justify-center space-x-1.5 cursor-pointer ${activeDetailUser.verified 
+                  ? 'bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-100' 
+                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+              >
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{activeDetailUser.verified ? 'Verified' : 'Verify User'}</span>
+              </button>
+              
+              <button
+                onClick={() => {
+                  toggleSuspendUser(activeDetailUser.id);
+                  // Refresh the activeDetailUser in local state so the drawer UI updates immediately!
+                  setActiveDetailUser(prev => prev ? { ...prev, status: prev.status === 'Suspended' ? 'Active' : 'Suspended' } : null);
+                }}
+                className={`flex-1 py-3 rounded-xl font-extrabold text-xs transition border cursor-pointer ${activeDetailUser.status === 'Suspended' 
+                  ? 'bg-red-500 border-red-500 text-white hover:bg-red-600' 
+                  : 'bg-white border-red-200 text-red-500 hover:bg-red-50'}`}
+              >
+                {activeDetailUser.status === 'Suspended' ? 'Unsuspend User' : 'Suspend User'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

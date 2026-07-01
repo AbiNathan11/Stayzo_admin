@@ -12,6 +12,7 @@ import {
   User,
   Info
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface ContactMessage {
   id: string;
@@ -24,38 +25,7 @@ interface ContactMessage {
   status: 'Read' | 'Unread';
 }
 
-const mockMessages: ContactMessage[] = [
-  {
-    id: "MSG-1001",
-    fullName: "Anura Bandara",
-    email: "anura@lakeview.com",
-    subject: "Partnership Inquiries",
-    message: "Hello Stayzo team, I own a boutique hotel block in Kandy and want to know about bulk hosting packages on your premium subscription tier. Do you support payment gateways routing to local Sri Lankan banks?",
-    date: "May 24, 2026",
-    time: "02:15 PM",
-    status: "Unread"
-  },
-  {
-    id: "MSG-1002",
-    fullName: "Abiramy Selva",
-    email: "abiramy@example.com",
-    subject: "Lease Document Download Issue",
-    message: "Hi, I recently signed a lease for Villa Tropical Cana, but the PDF download button is giving a network error on the dashboard. Could you please email me the verified lease document directly?",
-    date: "May 23, 2026",
-    time: "11:05 AM",
-    status: "Read"
-  },
-  {
-    id: "MSG-1003",
-    fullName: "Seneka De Silva",
-    email: "seneka@gallefort.lk",
-    subject: "Landlord Verification Delay",
-    message: "Greetings, I uploaded my ownership deed credentials three days ago for review, but my landlord profile is still displaying as unverified. Kindly audit my documents so I can launch my property search listing.",
-    date: "May 20, 2026",
-    time: "09:40 AM",
-    status: "Unread"
-  }
-];
+
 
 export default function MessagesPage() {
   const [messages, setMessages] = useState<ContactMessage[]>([]);
@@ -63,52 +33,116 @@ export default function MessagesPage() {
   const [statusFilter, setStatusFilter] = useState<'All' | 'Unread' | 'Read'>('All');
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
 
-  // Sync messages from local storage or pre-populate with mock data
+  const [replyText, setReplyText] = useState('');
+  const [replyLoading, setReplyLoading] = useState(false);
+
+  const fetchMessages = () => {
+    fetch('http://localhost:3001/api/contact', { cache: 'no-store' })
+      .then(res => res.json())
+      .then(data => {
+        const mapped = data.map((msg: any) => {
+          const dateObj = new Date(msg.createdAt);
+          return {
+            id: msg.id,
+            fullName: msg.fullName,
+            email: msg.email,
+            subject: msg.subject || 'General Inquiry',
+            message: msg.message,
+            date: dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            time: dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            status: msg.status
+          };
+        });
+        setMessages(mapped);
+      })
+      .catch(console.error);
+  };
+
   useEffect(() => {
-    const existing = localStorage.getItem('stayzo_contact_messages');
-    if (existing) {
-      setMessages(JSON.parse(existing));
-    } else {
-      setMessages(mockMessages);
-      localStorage.setItem('stayzo_contact_messages', JSON.stringify(mockMessages));
-    }
+    fetchMessages();
   }, []);
 
-  const saveToLocalStorage = (updatedMessages: ContactMessage[]) => {
-    setMessages(updatedMessages);
-    localStorage.setItem('stayzo_contact_messages', JSON.stringify(updatedMessages));
-  };
-
-  const toggleReadStatus = (id: string, e: React.MouseEvent) => {
+  const toggleReadStatus = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const updated = messages.map(m => {
-      if (m.id === id) {
-        const nextStatus: 'Read' | 'Unread' = m.status === 'Read' ? 'Unread' : 'Read';
-        return { ...m, status: nextStatus };
+    const currentMsg = messages.find(m => m.id === id);
+    if (!currentMsg) return;
+    const nextStatus = currentMsg.status === 'Read' ? 'Unread' : 'Read';
+    try {
+      const res = await fetch(`http://localhost:3001/api/contact/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus })
+      });
+      if (res.ok) {
+        fetchMessages();
+        if (selectedMessage && selectedMessage.id === id) {
+          setSelectedMessage({ ...selectedMessage, status: nextStatus });
+        }
       }
-      return m;
-    });
-    saveToLocalStorage(updated);
-    if (selectedMessage && selectedMessage.id === id) {
-      setSelectedMessage({ ...selectedMessage, status: selectedMessage.status === 'Read' ? 'Unread' : 'Read' });
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  const deleteMessage = (id: string, e: React.MouseEvent) => {
+  const deleteMessage = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const updated = messages.filter(m => m.id !== id);
-    saveToLocalStorage(updated);
-    if (selectedMessage && selectedMessage.id === id) {
-      setSelectedMessage(null);
+    try {
+      const res = await fetch(`http://localhost:3001/api/contact/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        fetchMessages();
+        if (selectedMessage && selectedMessage.id === id) {
+          setSelectedMessage(null);
+        }
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  const openMessage = (msg: ContactMessage) => {
+  const openMessage = async (msg: ContactMessage) => {
     setSelectedMessage(msg);
-    // Auto mark as read on opening
+    setReplyText(''); // reset reply form when opening new message
     if (msg.status === 'Unread') {
-      const updated = messages.map(m => m.id === msg.id ? { ...m, status: 'Read' as const } : m);
-      saveToLocalStorage(updated);
+      try {
+        const res = await fetch(`http://localhost:3001/api/contact/${msg.id}/status`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Read' })
+        });
+        if (res.ok) {
+          fetchMessages();
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
+  const handleSendReply = async () => {
+    if (!selectedMessage || !replyText.trim()) return;
+    setReplyLoading(true);
+    try {
+      const res = await fetch(`http://localhost:3001/api/contact/${selectedMessage.id}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ replyMessage: replyText })
+      });
+      if (res.ok) {
+        toast.success("Reply sent successfully via email!");
+        setReplyText('');
+        fetchMessages(); // Refresh message list status
+        setSelectedMessage({ ...selectedMessage, status: 'Read' });
+      } else {
+        const errData = await res.json();
+        toast.error(`Failed to send reply: ${errData.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("An error occurred while sending the reply.");
+    } finally {
+      setReplyLoading(false);
     }
   };
 
@@ -362,7 +396,25 @@ export default function MessagesPage() {
                     <p className="text-[9px] text-gray-400 uppercase">Time Sent</p>
                     <p className="text-gray-800 font-extrabold mt-1">{selectedMessage.time}</p>
                   </div>
-                </div>
+              </div>
+            </div>
+
+            {/* Message Reply Form */}
+              <div className="space-y-3 pt-6 border-t border-gray-100">
+                <h5 className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Send Email Reply via Gmail</h5>
+                <textarea
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="Type your support reply message here..."
+                  className="w-full min-h-[100px] bg-[#F8FAFB] border border-gray-200/50 rounded-2xl p-4 text-xs font-bold text-gray-800 outline-none focus:bg-white focus:border-[#1A1A1A] transition resize-none"
+                />
+                <button
+                  onClick={handleSendReply}
+                  disabled={replyLoading || !replyText.trim()}
+                  className="w-full bg-[#1A1A1A] hover:bg-black text-white py-3 rounded-2xl text-xs font-extrabold uppercase transition cursor-pointer disabled:opacity-50 flex items-center justify-center space-x-2"
+                >
+                  <span>{replyLoading ? 'Sending Reply...' : 'Send Reply via Gmail'}</span>
+                </button>
               </div>
 
             </div>

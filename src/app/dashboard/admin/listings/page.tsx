@@ -15,8 +15,8 @@ export default function ListingInteractionsPage() {
     const [listings, setListings] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
 
-    React.useEffect(() => {
-        fetch('http://localhost:3001/api/properties')
+    const fetchListings = () => {
+        fetch('http://localhost:3001/api/properties', { cache: 'no-store' })
             .then(res => res.json())
             .then(data => {
                 const mapped = data.map((item: any) => ({
@@ -26,24 +26,30 @@ export default function ListingInteractionsPage() {
                     ownerEmail: item.owner?.email || 'N/A',
                     location: `${item.city || 'Anytown'}, ${item.state || 'ST'}`,
                     price: `$${item.price}/mo`,
-                    fraudScore: Math.floor(Math.random() * 25), // Mock fraud score for demo
-                    status: item.status || 'Active',
-                    image: item.images?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=400&q=80',
-                    reason: 'Loaded from database'
+                    fraudScore: Math.floor(Math.random() * 80) + 20, // Mock noise level for demo
+                    status: item.status === 'Disabled' ? 'Disabled' : 'Active',
+                    image: item.images?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=400&q=80'
                 }));
                 setListings(mapped);
             })
             .catch(console.error);
+    };
+
+    React.useEffect(() => {
+        fetchListings();
     }, []);
 
-    const toggleStatus = (id: string) => {
-        setListings(listings.map((item) => {
-            if (item.id === id) {
-                const newStatus = item.status === 'Active' ? 'Disabled' : 'Active';
-                return { ...item, status: newStatus };
+    const toggleStatus = async (id: string) => {
+        try {
+            const res = await fetch(`http://localhost:3001/api/properties/${id}/toggle-status`, {
+                method: 'POST'
+            });
+            if (res.ok) {
+                fetchListings();
             }
-            return item;
-        }));
+        } catch (err) {
+            console.error(err);
+        }
     };
 
     const filteredListings = listings.filter((item) => {
@@ -86,9 +92,9 @@ export default function ListingInteractionsPage() {
 
                 <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex justify-between items-start">
                     <div className="space-y-1">
-                        <span className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">AI High-Risk Flags</span>
+                        <span className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">High Noise Level Flags</span>
                         <div className="text-3xl font-black text-gray-900">
-                            {listings.filter(l => l.fraudScore > 20).length}
+                            {listings.filter(l => l.fraudScore > 75).length}
                         </div>
                         <span className="text-xs font-bold text-amber-500 bg-amber-50 px-2 py-0.5 rounded-md inline-block mt-2">Requires Auditing</span>
                     </div>
@@ -120,96 +126,92 @@ export default function ListingInteractionsPage() {
                     </div>
                 </div>
 
-                {/* Listings Queue Display */}
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    {filteredListings.map((listing) => (
-                        <div
-                            key={listing.id}
-                            className={`border rounded-2xl p-4 flex flex-col sm:flex-row gap-4 hover:shadow-md transition duration-200 bg-white ${
-                                listing.status === 'Disabled' ? 'border-red-100 bg-red-50/5' : 'border-gray-100'
-                            }`}
-                        >
-
-                            {/* Product Thumbnail Imagery container */}
-                            <div className="w-full sm:w-44 h-32 rounded-xl overflow-hidden relative bg-gray-100 shrink-0">
-                                <img
-                                    src={listing.image}
-                                    alt={listing.title}
-                                    className="w-full h-full object-cover"
-                                />
-                                <span className="absolute top-2 left-2 bg-black/70 backdrop-blur-sm text-white px-2 py-0.5 rounded-md text-[10px] font-black tracking-wider">
-                                    {listing.id}
-                                </span>
-                                <span className={`absolute bottom-2 right-2 px-2 py-0.5 rounded-md text-[9px] font-black tracking-wider ${
-                                    listing.status === 'Active' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
-                                }`}>
-                                    {listing.status}
-                                </span>
-                            </div>
-
-                            {/* Functional details column */}
-                            <div className="flex-1 flex flex-col justify-between space-y-2">
-                                <div>
-                                    <div className="flex justify-between items-start gap-2">
-                                        <h3 className="text-sm font-black text-gray-900 line-clamp-1">{listing.title}</h3>
-                                        <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md shrink-0 ${
-                                            listing.fraudScore > 20
-                                                ? 'bg-amber-50 text-amber-600'
-                                                : 'bg-emerald-50 text-emerald-600'
-                                        }`}>
-                                            Risk: {listing.fraudScore}%
-                                        </span>
-                                    </div>
-
-                                    <p className="text-xs font-medium text-gray-400 mt-0.5">{listing.location}</p>
-
-                                    <div className="mt-2 text-xs">
-                                        <span className="font-extrabold text-gray-900">{listing.owner}</span>
-                                        <span className="text-gray-400 font-medium"> ({listing.ownerEmail})</span>
-                                    </div>
-                                </div>
-
-                                {/* Verification Reason message box */}
-                                <div className="bg-[#F8FAFC] p-2 rounded-xl text-[11px] font-semibold text-gray-500 flex items-center gap-2">
-                                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-500" />
-                                    <span className="line-clamp-1">{listing.reason}</span>
-                                </div>
-
-                                {/* Interactive Workflow Trigger Actions */}
-                                <div className="flex items-center justify-between pt-1">
-                                    <span className="text-sm font-black text-gray-900">{listing.price}</span>
-
-                                    <div className="flex space-x-2">
-                                        {listing.status === 'Active' ? (
-                                            <button 
-                                                onClick={() => toggleStatus(listing.id)}
-                                                className="flex items-center space-x-1 px-3 py-1.5 border border-red-200 text-red-600 rounded-xl text-xs font-black hover:bg-red-50 transition cursor-pointer"
-                                            >
-                                                <EyeOff className="w-3.5 h-3.5" />
-                                                <span>Disable Property</span>
-                                            </button>
-                                        ) : (
-                                            <button 
-                                                onClick={() => toggleStatus(listing.id)}
-                                                className="flex items-center space-x-1 px-3 py-1.5 bg-emerald-500 text-white rounded-xl text-xs font-black hover:bg-emerald-600 transition shadow-sm cursor-pointer"
-                                            >
-                                                <Check className="w-3.5 h-3.5" />
-                                                <span>Enable Property</span>
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-
-                            </div>
-
-                        </div>
-                    ))}
-
-                    {filteredListings.length === 0 && (
-                        <div className="col-span-full py-12 text-center text-xs font-bold text-gray-400 bg-[#F8FAFC] rounded-2xl border border-dashed border-gray-200">
-                            No properties match your search queries.
-                        </div>
-                    )}
+                {/* Listings Queue Display as Table */}
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs font-bold">
+                        <thead>
+                            <tr className="border-b border-gray-100 text-gray-400 uppercase tracking-widest text-[9px]">
+                                <th className="py-4 px-4">Property</th>
+                                <th className="py-4 px-4">Owner</th>
+                                <th className="py-4 px-4">Location</th>
+                                <th className="py-4 px-4">Price</th>
+                                <th className="py-4 px-4">Status</th>
+                                <th className="py-4 px-4 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {filteredListings.length === 0 ? (
+                                <tr>
+                                    <td colSpan={7} className="text-center py-12 text-gray-400 font-semibold">
+                                        No properties match your search queries.
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredListings.map((listing) => (
+                                    <tr
+                                        key={listing.id}
+                                        className={`hover:bg-[#F8FAFB]/70 transition group ${
+                                            listing.status === 'Disabled' ? 'bg-red-50/10' : ''
+                                        }`}
+                                    >
+                                        <td className="py-4 px-4">
+                                            <div className="flex items-center space-x-3">
+                                                <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+                                                    <img
+                                                        src={listing.image}
+                                                        alt={listing.title}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <p className="text-gray-950 font-extrabold max-w-[150px] truncate">{listing.title}</p>
+                                                    <p className="text-gray-400 font-semibold text-[9px] mt-0.5">ID: {listing.id}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="py-4 px-4">
+                                            <p className="text-gray-800 font-bold max-w-[150px] truncate">{listing.owner}</p>
+                                            <p className="text-gray-400 font-semibold text-[9px] mt-0.5 max-w-[150px] truncate">{listing.ownerEmail}</p>
+                                        </td>
+                                        <td className="py-4 px-4">
+                                            <p className="text-gray-700 font-semibold max-w-[150px] truncate">{listing.location}</p>
+                                        </td>
+                                        <td className="py-4 px-4 text-gray-900 font-extrabold">
+                                            {listing.price}
+                                        </td>
+                                        <td className="py-4 px-4">
+                                            <span className={`px-2 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-wide border ${
+                                                listing.status === 'Active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'
+                                            }`}>
+                                                {listing.status}
+                                            </span>
+                                        </td>
+                                        <td className="py-4 px-4">
+                                            <div className="flex items-center justify-center">
+                                                {listing.status === 'Active' ? (
+                                                    <button 
+                                                        onClick={() => toggleStatus(listing.id)}
+                                                        title="Disable Property"
+                                                        className="px-3 py-1.5 rounded-lg font-extrabold transition cursor-pointer flex items-center justify-center border bg-white text-red-500 border-gray-200 hover:bg-red-50 hover:border-red-100 text-[10px] uppercase tracking-wider"
+                                                    >
+                                                        Disable
+                                                    </button>
+                                                ) : (
+                                                    <button 
+                                                        onClick={() => toggleStatus(listing.id)}
+                                                        title="Enable Property"
+                                                        className="px-3 py-1.5 rounded-lg font-extrabold transition cursor-pointer flex items-center justify-center border bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 text-[10px] uppercase tracking-wider"
+                                                    >
+                                                        Enable
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
                 </div>
 
             </div>
