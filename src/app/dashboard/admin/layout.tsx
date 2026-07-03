@@ -57,27 +57,42 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   useEffect(() => {
-    const token = Cookies.get('stayzo_token');
-    if (!token) {
-      window.location.href = '/login';
-      return;
-    }
-
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const lowerEmail = (payload.email || '').toLowerCase();
-      const isAdminUser = !!payload.isAdmin || lowerEmail === 'stayzoavp@gmail.com' || lowerEmail.startsWith('admin@');
-      
-      if (!isAdminUser) {
-        window.location.href = '/login';
+    const checkAuth = () => {
+      const token = Cookies.get('stayzo_token');
+      if (!token) {
+        window.location.replace('/login');
         return;
       }
 
-      fetchProfile();
-    } catch (e) {
-      console.error('Failed to parse admin token', e);
-      window.location.href = '/login';
-    }
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const lowerEmail = (payload.email || '').toLowerCase();
+        const isAdminUser = !!payload.isAdmin || lowerEmail === 'stayzoavp@gmail.com' || lowerEmail.startsWith('admin@');
+        
+        if (!isAdminUser) {
+          window.location.replace('/login');
+          return;
+        }
+
+        fetchProfile();
+      } catch (e) {
+        console.error('Failed to parse admin token', e);
+        window.location.replace('/login');
+      }
+    };
+
+    checkAuth();
+
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        checkAuth();
+      }
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow);
+    };
   }, []);
 
   const handleSaveProfile = async (e?: React.FormEvent) => {
@@ -135,7 +150,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     Cookies.remove('stayzo_token');
     Cookies.remove('stayzo_refresh_token');
     localStorage.removeItem('stayzo_admin_profile');
-    window.location.href = '/login';
+    window.location.replace('/login');
   };
 
   const getPageTitle = () => {
