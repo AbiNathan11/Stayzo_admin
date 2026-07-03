@@ -18,7 +18,7 @@ interface FinancialTransaction {
   user: string;
   email: string;
   targetListing: string;
-  status: 'Cleared' | 'Pending' | 'Failed';
+  status: 'Cleared' | 'Completed' | 'Pending' | 'Failed';
   date: string;
   time: string;
   reference: string;
@@ -37,20 +37,32 @@ export default function ActivitiesPage() {
     fetch('http://localhost:3001/api/transactions', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
-        const mapped = data.map((item: any) => ({
-          id: item.id,
-          type: item.type,
-          amount: item.amount,
-          user: item.user,
-          email: item.email,
-          targetListing: item.targetListing,
-          status: item.status,
-          date: new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          time: new Date(item.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-          reference: item.reference,
-          paymentMethod: item.paymentMethod,
-          ipAddress: item.ipAddress
-        }));
+        const mapped = data.map((item: any) => {
+          let displayName = 'Unknown User';
+          if (item.User) {
+            displayName = `${item.User.firstName || ''} ${item.User.lastName || ''}`.trim() || 'Unknown User';
+          } else if (item.user && !/^[0-9a-fA-F-]{36}$/.test(item.user)) {
+            displayName = item.user;
+          } else if (item.email && item.email !== 'N/A') {
+            const parts = item.email.split('@');
+            displayName = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+          }
+
+          return {
+            id: item.id,
+            type: item.type === 'Listing Boost' ? 'Ad Boosting' : item.type,
+            amount: item.amount,
+            user: displayName,
+            email: item.email,
+            targetListing: item.targetListing,
+            status: item.status,
+            date: new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            time: new Date(item.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            reference: item.reference,
+            paymentMethod: item.paymentMethod,
+            ipAddress: item.ipAddress
+          };
+        });
         setTransactions(mapped);
       })
       .catch(console.error)
@@ -64,7 +76,10 @@ export default function ActivitiesPage() {
       t.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.targetListing.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.reference.toLowerCase().includes(searchQuery.toLowerCase());
+      t.reference.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.paymentMethod.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.amount.toString().includes(searchQuery);
 
     const matchesType = filterType === 'All' || t.type === filterType;
     return matchesSearch && matchesType;
@@ -72,15 +87,15 @@ export default function ActivitiesPage() {
 
   // Calculation of totals and percentages
   const totalAmount = transactions
-    .filter(t => t.status === 'Cleared')
+    .filter(t => t.status === 'Cleared' || t.status === 'Completed')
     .reduce((sum, t) => sum + t.amount, 0);
 
   const listingTotal = transactions
-    .filter(t => t.type === 'Listing Fee' && t.status === 'Cleared')
+    .filter(t => t.type === 'Listing Fee' && (t.status === 'Cleared' || t.status === 'Completed'))
     .reduce((sum, t) => sum + t.amount, 0);
 
   const boostingTotal = transactions
-    .filter(t => t.type === 'Ad Boosting' && t.status === 'Cleared')
+    .filter(t => t.type === 'Ad Boosting' && (t.status === 'Cleared' || t.status === 'Completed'))
     .reduce((sum, t) => sum + t.amount, 0);
 
   const listingPercent = totalAmount > 0 ? Math.round((listingTotal / totalAmount) * 100) : 0;
@@ -126,12 +141,12 @@ export default function ActivitiesPage() {
         <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm hover:shadow-md transition duration-300 flex items-start justify-between">
           <div className="space-y-3">
             <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest block">Ad Boosting Payments</span>
-            <h3 className="text-3xl font-extrabold text-indigo-600 tracking-tight">{boostingPercent}%</h3>
+            <h3 className="text-3xl font-extrabold text-purple-600 tracking-tight">{boostingPercent}%</h3>
             <p className="text-xs font-bold text-gray-500">
               Rs {boostingTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })} total
             </p>
           </div>
-          <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shrink-0">
             <Sparkles className="w-5 h-5" />
           </div>
         </div>
@@ -147,14 +162,14 @@ export default function ActivitiesPage() {
         <div className="w-full bg-gray-50 h-5 rounded-full overflow-hidden flex border border-gray-100">
           <div 
             style={{ width: `${listingPercent}%` }} 
-            className="h-full bg-blue-500 flex items-center justify-center text-[9px] font-black text-white transition-all duration-500"
+            className="h-full bg-blue-500/20 flex items-center justify-center text-[9px] font-black text-blue-700 transition-all duration-500"
             title={`Listing Fees: ${listingPercent}%`}
           >
             {listingPercent}% Listing Fees
           </div>
           <div 
             style={{ width: `${boostingPercent}%` }} 
-            className="h-full bg-indigo-500 flex items-center justify-center text-[9px] font-black text-white transition-all duration-500"
+            className="h-full bg-purple-500/20 flex items-center justify-center text-[9px] font-black text-purple-700 transition-all duration-500"
             title={`Ad Boosting: ${boostingPercent}%`}
           >
             {boostingPercent}% Ad Boosting
@@ -208,7 +223,7 @@ export default function ActivitiesPage() {
           <table className="w-full text-left border-collapse text-xs font-bold">
             <thead>
               <tr className="border-b border-gray-100 text-gray-400 uppercase tracking-widest text-[9px]">
-                <th className="py-4 px-4">Transaction ID</th>
+                <th className="py-4 px-4">Type</th>
                 <th className="py-4 px-4">Target Listing</th>
                 <th className="py-4 px-4">Payer details</th>
                 <th className="py-4 px-4">Timestamp</th>
@@ -234,19 +249,17 @@ export default function ActivitiesPage() {
                     <td className="py-4 px-4">
                       <div className="flex items-center space-x-2">
                         <span className={`w-8 h-8 rounded-xl flex items-center justify-center border ${
-                          tx.type === 'Listing Fee' ? 'bg-blue-50 border-blue-100 text-blue-600' : 'bg-indigo-50 border-indigo-100 text-indigo-600'
+                          tx.type === 'Listing Fee' ? 'bg-blue-50 border-blue-100 text-blue-600' : 'bg-purple-50 border-purple-100 text-purple-600'
                         }`}>
                           <ArrowDownLeft className="w-3.5 h-3.5" />
                         </span>
                         <div>
-                          <p className="text-gray-950 font-extrabold">{tx.id}</p>
-                          <p className="text-gray-400 text-[8px] font-bold uppercase tracking-widest">{tx.type}</p>
+                          <p className="text-gray-950 font-extrabold">{tx.type}</p>
                         </div>
                       </div>
                     </td>
                     <td className="py-4 px-4">
                       <p className="text-gray-800 font-bold max-w-[180px] truncate">{tx.targetListing}</p>
-                      <p className="text-gray-400 font-semibold text-[9px]">Ref: {tx.reference.substring(0, 12)}...</p>
                     </td>
                     <td className="py-4 px-4">
                       <p className="text-gray-800 font-bold">{tx.user}</p>
@@ -261,7 +274,7 @@ export default function ActivitiesPage() {
                     </td>
                     <td className="py-4 px-4">
                       <span className={`px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase border ${
-                        tx.status === 'Cleared' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                        tx.status === 'Cleared' || tx.status === 'Completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                         tx.status === 'Pending' ? 'bg-amber-50 text-amber-600 border-amber-100' :
                         'bg-red-50 text-red-600 border-red-100'
                       }`}>
@@ -288,7 +301,7 @@ export default function ActivitiesPage() {
       {/* DETAILED DIAGNOSTICS DRAWER */}
       {selectedFinancial && (
         <div className="fixed inset-0 bg-black/25 backdrop-blur-xs flex justify-end z-50 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-[500px] h-full shadow-2xl p-8 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-300">
+          <div className="bg-white w-full max-w-[500px] h-full shadow-2xl p-8 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-300 rounded-l-[40px] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <div className="space-y-8">
 
               {/* Header */}
@@ -312,7 +325,7 @@ export default function ActivitiesPage() {
                   <h4 className="text-2xl font-extrabold text-gray-950 mt-1">Rs {selectedFinancial.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</h4>
                 </div>
                 <span className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold uppercase border ${
-                  selectedFinancial.status === 'Cleared' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                  selectedFinancial.status === 'Cleared' || selectedFinancial.status === 'Completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                   selectedFinancial.status === 'Pending' ? 'bg-amber-50 text-amber-600 border-amber-100' :
                   'bg-red-50 text-red-600 border-red-100'
                 }`}>

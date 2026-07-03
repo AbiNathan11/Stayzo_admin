@@ -45,6 +45,18 @@ export default function UsersPage() {
     fetchUsers();
   }, []);
 
+  useEffect(() => {
+    const mainEl = document.querySelector('main');
+    if (activeDetailUser) {
+      if (mainEl) mainEl.style.overflowY = 'hidden';
+    } else {
+      if (mainEl) mainEl.style.overflowY = '';
+    }
+    return () => {
+      if (mainEl) mainEl.style.overflowY = '';
+    };
+  }, [activeDetailUser]);
+
   const toggleVerifyUser = async (id: string) => {
     try {
       const res = await fetch(`http://localhost:3001/api/auth/users/${id}/toggle-verify`, {
@@ -74,13 +86,17 @@ export default function UsersPage() {
   const filteredUsers = users.filter(u => {
     const matchesSearch =
       u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
-      u.email.toLowerCase().includes(userSearch.toLowerCase());
+      u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+      u.role.toLowerCase().includes(userSearch.toLowerCase()) ||
+      u.status.toLowerCase().includes(userSearch.toLowerCase()) ||
+      u.joinedDate.toLowerCase().includes(userSearch.toLowerCase());
     const matchesRole = userFilter === 'All' || u.role === userFilter;
     return matchesSearch && matchesRole;
   });
 
   return (
-    <div className="bg-white border border-gray-100 rounded-[32px] p-6 shadow-sm space-y-6 animate-in fade-in duration-300">
+    <>
+      <div className="bg-white border border-gray-100 rounded-[32px] p-6 shadow-sm space-y-6 animate-in fade-in duration-300">
 
       {/* Header and Controls */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-gray-50 pb-5">
@@ -153,7 +169,6 @@ export default function UsersPage() {
                               </span>
                             )}
                           </div>
-                          <span className="text-[9px] text-gray-400 font-semibold block mt-1">ID: #USR-{account.id.substring(0, 8).toUpperCase()}</span>
                         </div>
                       </div>
                     </td>
@@ -212,8 +227,9 @@ export default function UsersPage() {
           </table>
         </div>
       </div>
+    </div>
 
-      {/* Sliding Details Drawer (on the right side) */}
+    {/* Sliding Details Drawer (on the right side) */}
       {activeDetailUser && (
         <>
           {/* Backdrop Overlay */}
@@ -223,7 +239,7 @@ export default function UsersPage() {
           />
           
           {/* Side Drawer Container */}
-          <div className="fixed top-0 right-0 h-full w-[460px] max-w-full bg-white shadow-[-8px_0_24px_rgba(0,0,0,0.08)] z-50 flex flex-col border-l border-gray-100 animate-in slide-in-from-right duration-300">
+          <div className="fixed top-0 right-0 h-full w-[460px] max-w-full bg-white shadow-[-8px_0_24px_rgba(0,0,0,0.08)] z-50 flex flex-col border-l border-gray-100 animate-in slide-in-from-right duration-300 rounded-l-[40px] overflow-hidden">
             {/* Header */}
             <div className="p-6 border-b border-gray-50 flex items-center justify-between">
               <div>
@@ -239,7 +255,7 @@ export default function UsersPage() {
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               {/* Profile Card */}
               <div className="flex items-center space-x-4 bg-gray-50/50 border border-gray-100 rounded-2xl p-4">
                 <div className="w-14 h-14 rounded-2xl bg-white text-[#1A1A1A] border border-gray-200/50 flex items-center justify-center font-extrabold text-xl select-none shadow-xs">
@@ -252,7 +268,6 @@ export default function UsersPage() {
                       <ShieldCheck className="w-4 h-4 text-emerald-500 fill-emerald-500/10 shrink-0" />
                     )}
                   </div>
-                  <span className="text-[10px] text-gray-400 font-semibold block">ID: #USR-{activeDetailUser.id.substring(0, 8).toUpperCase()}</span>
                   <div className="flex gap-2 mt-1">
                     <span className={`px-2 py-0.5 rounded-md text-[8px] font-extrabold uppercase border ${activeDetailUser.role === 'Landlord' 
                       ? 'bg-purple-50 text-purple-600 border-purple-100' 
@@ -364,6 +379,6 @@ export default function UsersPage() {
           </div>
         </>
       )}
-    </div>
+    </>
   );
 }
