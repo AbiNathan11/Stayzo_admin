@@ -14,6 +14,9 @@ import {
 export default function ListingInteractionsPage() {
     const [listings, setListings] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedProperty, setSelectedProperty] = useState<any | null>(null);
+    const [nearbyAmenities, setNearbyAmenities] = useState<any[]>([]);
+    const [loadingAmenities, setLoadingAmenities] = useState(false);
 
     const fetchListings = () => {
         fetch('http://localhost:3001/api/properties', { cache: 'no-store' })
@@ -22,13 +25,22 @@ export default function ListingInteractionsPage() {
                 const mapped = data.map((item: any) => ({
                     id: item.id,
                     title: item.title,
+                    description: item.description,
+                    category: item.category,
+                    bedrooms: item.bedrooms,
+                    bathrooms: item.bathrooms,
+                    amenities: item.amenities || [],
                     owner: item.owner ? `${item.owner.firstName || ''} ${item.owner.lastName || ''}`.trim() || 'Admin/Owner' : 'Unknown Owner',
                     ownerEmail: item.owner?.email || 'N/A',
                     location: `${item.city || 'Anytown'}, ${item.state || 'ST'}`,
                     price: `$${item.price}/mo`,
-                    fraudScore: Math.floor(Math.random() * 80) + 20, // Mock noise level for demo
+                    fraudScore: Math.floor(Math.random() * 80) + 20, // Mock noise level for fallback
                     status: item.status === 'Disabled' ? 'Disabled' : 'Active',
-                    image: item.images?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=400&q=80'
+                    image: item.images?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=400&q=80',
+                    images: item.images || [],
+                    latitude: item.latitude,
+                    longitude: item.longitude,
+                    noisePrediction: item.noisePrediction || null
                 }));
                 setListings(mapped);
             })
@@ -36,8 +48,41 @@ export default function ListingInteractionsPage() {
     };
 
     React.useEffect(() => {
+        if (!selectedProperty) {
+            setNearbyAmenities([]);
+            return;
+        }
+        setLoadingAmenities(true);
+        const query = selectedProperty.latitude && selectedProperty.longitude
+            ? `lat=${selectedProperty.latitude}&lng=${selectedProperty.longitude}`
+            : `address=${encodeURIComponent(selectedProperty.location)}`;
+        fetch(`http://localhost:3001/api/properties/amenities?${query}&radius=3000`)
+            .then(res => res.json())
+            .then(data => {
+                setNearbyAmenities(data.amenities || []);
+            })
+            .catch(err => {
+                console.error('Error fetching amenities:', err);
+                setNearbyAmenities([]);
+            })
+            .finally(() => setLoadingAmenities(false));
+    }, [selectedProperty]);
+
+    React.useEffect(() => {
         fetchListings();
     }, []);
+
+    React.useEffect(() => {
+        const mainEl = document.querySelector('main');
+        if (selectedProperty) {
+            if (mainEl) mainEl.style.overflowY = 'hidden';
+        } else {
+            if (mainEl) mainEl.style.overflowY = '';
+        }
+        return () => {
+            if (mainEl) mainEl.style.overflowY = '';
+        };
+    }, [selectedProperty]);
 
     const toggleStatus = async (id: string) => {
         try {
@@ -55,12 +100,16 @@ export default function ListingInteractionsPage() {
     const filteredListings = listings.filter((item) => {
         const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             item.owner.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.ownerEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.price.toLowerCase().includes(searchQuery.toLowerCase()) ||
             item.id.toLowerCase().includes(searchQuery.toLowerCase());
         return matchesSearch;
     });
 
     return (
-        <div className="space-y-6 max-w-[1600px] mx-auto animate-in fade-in duration-300">
+        <>
+            <div className="space-y-6 max-w-[1600px] mx-auto animate-in fade-in duration-300">
 
             {/* Metric Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -94,7 +143,7 @@ export default function ListingInteractionsPage() {
                     <div className="space-y-1">
                         <span className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">High Noise Level Flags</span>
                         <div className="text-3xl font-black text-gray-900">
-                            {listings.filter(l => l.fraudScore > 75).length}
+                            {listings.filter(l => (l.noisePrediction?.noiseLevelScore ?? l.fraudScore) > 75).length}
                         </div>
                         <span className="text-xs font-bold text-amber-500 bg-amber-50 px-2 py-0.5 rounded-md inline-block mt-2">Requires Auditing</span>
                     </div>
@@ -115,14 +164,11 @@ export default function ListingInteractionsPage() {
                         </span>
                         <input
                             type="text"
-                            placeholder="Search approved properties by title, owner, ID..."
+                            placeholder="Search approved properties by title, owner..."
                             className="w-full bg-[#F8FAFC] pl-10 pr-4 py-2.5 rounded-xl text-xs font-semibold text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200 transition"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
-                    </div>
-                    <div>
-                        <span className="text-xs text-gray-400 font-extrabold uppercase tracking-wider">Moderation Level: Full</span>
                     </div>
                 </div>
 
@@ -142,7 +188,7 @@ export default function ListingInteractionsPage() {
                         <tbody className="divide-y divide-gray-50">
                             {filteredListings.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="text-center py-12 text-gray-400 font-semibold">
+                                    <td colSpan={6} className="text-center py-12 text-gray-400 font-semibold">
                                         No properties match your search queries.
                                     </td>
                                 </tr>
@@ -165,7 +211,6 @@ export default function ListingInteractionsPage() {
                                                 </div>
                                                 <div>
                                                     <p className="text-gray-950 font-extrabold max-w-[150px] truncate">{listing.title}</p>
-                                                    <p className="text-gray-400 font-semibold text-[9px] mt-0.5">ID: {listing.id}</p>
                                                 </div>
                                             </div>
                                         </td>
@@ -187,7 +232,13 @@ export default function ListingInteractionsPage() {
                                             </span>
                                         </td>
                                         <td className="py-4 px-4">
-                                            <div className="flex items-center justify-center">
+                                            <div className="flex items-center justify-center space-x-2">
+                                                <button
+                                                    onClick={() => setSelectedProperty(listing)}
+                                                    className="px-3 py-1.5 rounded-lg font-extrabold transition cursor-pointer border bg-white border-gray-200 text-gray-700 hover:bg-gray-50 text-[10px] uppercase tracking-wider"
+                                                >
+                                                    More Details
+                                                </button>
                                                 {listing.status === 'Active' ? (
                                                     <button 
                                                         onClick={() => toggleStatus(listing.id)}
@@ -215,7 +266,255 @@ export default function ListingInteractionsPage() {
                 </div>
 
             </div>
-
         </div>
+            
+        {/* Sliding Details Drawer for Property */}
+            {selectedProperty && (
+                <>
+                    {/* Backdrop Overlay */}
+                    <div 
+                        className="fixed inset-0 bg-black/30 backdrop-blur-xs z-40 animate-in fade-in duration-200"
+                        onClick={() => setSelectedProperty(null)}
+                    />
+                    
+                    {/* Side Drawer Container */}
+                    <div className="fixed top-0 right-0 h-full w-[480px] max-w-full bg-white shadow-[-8px_0_24px_rgba(0,0,0,0.08)] z-50 flex flex-col border-l border-gray-100 animate-in slide-in-from-right duration-300 rounded-l-[40px] overflow-hidden">
+                        {/* Header */}
+                        <div className="p-6 border-b border-gray-50 flex items-center justify-between">
+                            <div>
+                                <h4 className="font-extrabold text-base text-gray-900">Property Details</h4>
+                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">Specifications and status info</p>
+                            </div>
+                            <button
+                                onClick={() => setSelectedProperty(null)}
+                                className="text-gray-400 hover:text-gray-900 cursor-pointer p-1.5 rounded-lg hover:bg-gray-50 transition"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Scrollable Content */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                            {/* Hero Image / Gallery */}
+                            <div className="space-y-2">
+                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Property Gallery</span>
+                                <div className="bg-gray-50 border border-gray-100 rounded-2xl overflow-hidden flex flex-col gap-2">
+                                    {selectedProperty.images && selectedProperty.images.length > 0 ? (
+                                        <div className="grid grid-cols-1 gap-2">
+                                            <img
+                                                src={selectedProperty.image}
+                                                alt={selectedProperty.title}
+                                                className="max-h-[240px] w-full object-cover"
+                                            />
+                                            {selectedProperty.images.length > 1 && (
+                                                <div className="grid grid-cols-4 gap-2 px-2 pb-2">
+                                                    {selectedProperty.images.slice(1, 5).map((imgUrl: string, i: number) => (
+                                                        <img
+                                                            key={i}
+                                                            src={imgUrl}
+                                                            alt="property sub-gallery"
+                                                            className="h-14 w-full object-cover rounded-lg border border-gray-100"
+                                                        />
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="text-gray-400 text-xs font-semibold py-8 text-center">No images uploaded</div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Info Box */}
+                            <div className="space-y-4">
+                                <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-2">Specifications</h5>
+                                <div className="grid grid-cols-2 gap-4 text-xs">
+                                    <div className="space-y-1 bg-gray-50/20 p-3 rounded-xl border border-gray-50/50">
+                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Title</span>
+                                        <span className="font-extrabold text-gray-900">{selectedProperty.title}</span>
+                                    </div>
+                                    <div className="space-y-1 bg-gray-50/20 p-3 rounded-xl border border-gray-50/50">
+                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Price</span>
+                                        <span className="font-extrabold text-[#1A1A1A]">{selectedProperty.price}</span>
+                                    </div>
+                                    <div className="space-y-1 bg-gray-50/20 p-3 rounded-xl border border-gray-50/50">
+                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Location</span>
+                                        <span className="font-extrabold text-gray-700">{selectedProperty.location}</span>
+                                    </div>
+                                    <div className="space-y-1 bg-gray-50/20 p-3 rounded-xl border border-gray-50/50">
+                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Category</span>
+                                        <span className="font-extrabold text-gray-700">{selectedProperty.category || 'N/A'}</span>
+                                    </div>
+                                    <div className="space-y-1 bg-gray-50/20 p-3 rounded-xl border border-gray-50/50">
+                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Bedrooms</span>
+                                        <span className="font-extrabold text-gray-700">{selectedProperty.bedrooms || 0}</span>
+                                    </div>
+                                    <div className="space-y-1 bg-gray-50/20 p-3 rounded-xl border border-gray-50/50">
+                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Bathrooms</span>
+                                        <span className="font-extrabold text-gray-700">{selectedProperty.bathrooms || 0}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Description */}
+                            <div className="space-y-2">
+                                <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-2">Description</h5>
+                                <p className="text-xs font-bold text-gray-700 leading-relaxed bg-gray-50/30 p-4 border border-gray-100 rounded-2xl">
+                                    {selectedProperty.description || 'No description provided.'}
+                                </p>
+                            </div>
+
+                            {/* Amenities */}
+                            {selectedProperty.amenities && selectedProperty.amenities.length > 0 && (
+                                <div className="space-y-2">
+                                    <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-2">Amenities</h5>
+                                    <div className="flex flex-wrap gap-2 pt-1">
+                                        {selectedProperty.amenities.map((amenity: string, idx: number) => (
+                                            <span
+                                                key={idx}
+                                                className="px-2.5 py-1 bg-gray-50 border border-gray-100 text-gray-700 rounded-lg text-[9px] font-extrabold uppercase"
+                                            >
+                                                {amenity}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Noise Level Section */}
+                            <div className="space-y-4">
+                                <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-2">Acoustic Noise Analysis</h5>
+                                {selectedProperty.noisePrediction ? (
+                                    <div className="bg-gray-50/50 border border-gray-100 rounded-3xl p-5 space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Noise Level Score</span>
+                                                <span className="text-2xl font-black text-gray-900">{selectedProperty.noisePrediction.noiseLevelScore} / 100</span>
+                                            </div>
+                                            <span className={`px-3 py-1 rounded-xl text-xs font-black uppercase border ${
+                                                selectedProperty.noisePrediction.label === 'Low' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                selectedProperty.noisePrediction.label === 'Medium' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                                                'bg-red-50 text-red-600 border-red-100'
+                                            }`}>
+                                                {selectedProperty.noisePrediction.label} Noise
+                                            </span>
+                                        </div>
+                                        
+                                        <p className="text-xs font-bold text-gray-600 leading-relaxed bg-white p-3 border border-gray-50 rounded-xl">
+                                            {selectedProperty.noisePrediction.explanation}
+                                        </p>
+
+                                        {selectedProperty.noisePrediction.factors && selectedProperty.noisePrediction.factors.length > 0 && (
+                                            <div className="space-y-2">
+                                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Contributing Factors</span>
+                                                <div className="divide-y divide-gray-50 bg-white border border-gray-50 rounded-xl overflow-hidden text-xs">
+                                                    {selectedProperty.noisePrediction.factors.map((f: any, idx: number) => (
+                                                        <div key={idx} className="p-2.5 flex justify-between items-center font-bold">
+                                                            <div className="space-y-0.5">
+                                                                <p className="text-gray-800 font-extrabold">{f.name}</p>
+                                                                <p className="text-[9px] text-gray-400 font-semibold">{f.description}</p>
+                                                            </div>
+                                                            <span className={`text-[10px] font-black ${f.contribution >= 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                                                {f.contribution >= 0 ? `+${f.contribution}` : f.contribution}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="text-gray-400 text-xs font-semibold py-4 text-center">No acoustic audit data available</div>
+                                )}
+                            </div>
+
+                            {/* Nearby Amenities Section */}
+                            <div className="space-y-4">
+                                <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-2">Nearby Amenities (3km radius)</h5>
+                                {loadingAmenities ? (
+                                    <div className="space-y-3">
+                                        {[...Array(3)].map((_, i) => (
+                                            <div key={i} className="animate-pulse flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-2xl p-3">
+                                                <div className="w-8 h-8 bg-gray-200 rounded-lg shrink-0" />
+                                                <div className="flex-1 space-y-1.5">
+                                                    <div className="h-2.5 bg-gray-200 rounded w-2/3" />
+                                                    <div className="h-2 bg-gray-100 rounded w-1/3" />
+                                                </div>
+                                                <div className="h-2.5 w-10 bg-gray-200 rounded" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : nearbyAmenities.length > 0 ? (
+                                    <div className="grid grid-cols-1 gap-2.5">
+                                        {nearbyAmenities.map((amenity: any) => {
+                                            const getCategoryDetails = (cat: string) => {
+                                                switch(cat.toLowerCase()) {
+                                                    case 'hospital': return { emoji: '🏥', bg: 'bg-red-50 text-red-600 border-red-100' };
+                                                    case 'supermarket': return { emoji: '🛒', bg: 'bg-emerald-50 text-emerald-600 border-emerald-100' };
+                                                    case 'bus_station': return { emoji: '🚌', bg: 'bg-blue-50 text-blue-600 border-blue-100' };
+                                                    case 'school': return { emoji: '🏫', bg: 'bg-indigo-50 text-indigo-600 border-indigo-100' };
+                                                    case 'university': return { emoji: '🎓', bg: 'bg-purple-50 text-purple-600 border-purple-100' };
+                                                    case 'restaurant': return { emoji: '🍔', bg: 'bg-amber-50 text-amber-600 border-amber-100' };
+                                                    case 'pharmacy': return { emoji: '💊', bg: 'bg-pink-50 text-pink-600 border-pink-100' };
+                                                    default: return { emoji: '📍', bg: 'bg-gray-50 text-gray-600 border-gray-100' };
+                                                }
+                                            };
+                                            const details = getCategoryDetails(amenity.category);
+                                            return (
+                                                <div key={amenity.id} className="flex items-center justify-between p-3.5 bg-white border border-gray-100 hover:border-gray-200 rounded-2xl transition">
+                                                    <div className="flex items-center space-x-3 min-w-0">
+                                                        <span className="text-xl shrink-0">{details.emoji}</span>
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-extrabold text-gray-900 truncate">{amenity.name}</p>
+                                                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider block mt-0.5">{amenity.category.replace('_', ' ')}</span>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-[10px] font-extrabold text-gray-500 bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full shrink-0">
+                                                        {amenity.distance >= 1000 ? `${(amenity.distance/1000).toFixed(1)} km` : `${amenity.distance} m`}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="text-gray-400 text-xs font-semibold py-4 text-center">No public venues or amenities found within 3km</div>
+                                )}
+                            </div>
+
+                            {/* Owner Details */}
+                            <div className="space-y-3">
+                                <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-2">Owner Metadata</h5>
+                                <div className="bg-gray-50/50 border border-gray-100 rounded-2xl p-4 flex items-center space-x-3">
+                                    <div className="w-10 h-10 rounded-xl bg-white text-[#1A1A1A] border border-gray-200/50 flex items-center justify-center font-extrabold text-sm select-none shadow-xs shrink-0">
+                                        {selectedProperty.owner.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-extrabold text-gray-900">{selectedProperty.owner}</p>
+                                        <p className="text-[9px] text-gray-400 font-semibold mt-0.5">{selectedProperty.ownerEmail}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Quick Actions Panel Footer */}
+                        <div className="p-6 border-t border-gray-50 bg-gray-50/30 flex items-center gap-3">
+                            <button
+                                onClick={() => {
+                                    toggleStatus(selectedProperty.id);
+                                    setSelectedProperty((prev: any) => prev ? { ...prev, status: prev.status === 'Active' ? 'Disabled' : 'Active' } : null);
+                                }}
+                                className={`flex-1 py-3 rounded-xl font-extrabold text-xs transition border flex items-center justify-center space-x-1.5 cursor-pointer ${
+                                    selectedProperty.status === 'Active' 
+                                        ? 'bg-red-50 border-red-100 text-red-500 hover:bg-red-100' 
+                                        : 'bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-100'
+                                }`}
+                            >
+                                <span>{selectedProperty.status === 'Active' ? 'Disable Property' : 'Enable Property'}</span>
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
+        </>
     );
 }
