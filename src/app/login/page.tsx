@@ -13,6 +13,22 @@ export default function AdminLogin() {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
 
+  React.useEffect(() => {
+    const token = Cookies.get('stayzo_token');
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const lowerEmail = (payload.email || '').toLowerCase();
+        const isAdminUser = !!payload.isAdmin || lowerEmail === 'stayzoavp@gmail.com' || lowerEmail.startsWith('admin@');
+        if (isAdminUser) {
+          window.location.href = '/dashboard/admin';
+        }
+      } catch (e) {
+        console.error('Failed to parse token in login page', e);
+      }
+    }
+  }, []);
+
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
 

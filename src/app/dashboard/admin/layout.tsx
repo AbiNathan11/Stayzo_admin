@@ -12,6 +12,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const [adminUser, setAdminUser] = useState<{ firstName: string; lastName: string; email: string; profileImage?: string | null } | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(true);
   
   // Profile modal states
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -31,7 +32,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           'Authorization': `Bearer ${token}`
         }
       })
-      .then(res => res.json())
+      .then(res => {
+        if (res.status === 401 || res.status === 404) {
+          Cookies.remove('stayzo_token');
+          Cookies.remove('stayzo_refresh_token');
+          window.location.href = '/login';
+          throw new Error('Invalid session');
+        }
+        return res.json();
+      })
       .then(data => {
         if (data.user) {
           setAdminUser({
@@ -41,6 +50,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             profileImage: data.user.profileImage
           });
         }
+        setIsVerifying(false);
       })
       .catch(err => {
         console.error('Failed to fetch user profile', err);
@@ -50,9 +60,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           email: payload.email || 'admin@stayzo.com',
           profileImage: null
         });
+        setIsVerifying(false);
       });
     } catch (e) {
       console.error(e);
+      setIsVerifying(false);
     }
   };
 
@@ -69,6 +81,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const isAdminUser = !!payload.isAdmin || lowerEmail === 'stayzoavp@gmail.com' || lowerEmail.startsWith('admin@');
       
       if (!isAdminUser) {
+        Cookies.remove('stayzo_token');
+        Cookies.remove('stayzo_refresh_token');
         window.location.href = '/login';
         return;
       }
@@ -76,6 +90,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       fetchProfile();
     } catch (e) {
       console.error('Failed to parse admin token', e);
+      Cookies.remove('stayzo_token');
+      Cookies.remove('stayzo_refresh_token');
       window.location.href = '/login';
     }
   }, []);
@@ -171,6 +187,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       ],
     },
   ];
+
+  if (isVerifying) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#F8FAFC]">
+        <Loader2 className="w-8 h-8 animate-spin text-[#1A1A1A]" />
+        <p className="text-xs font-bold text-gray-400 mt-4 uppercase tracking-widest animate-pulse">Verifying Credentials...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen overflow-hidden bg-[#F8FAFC] text-[#1A1A1A] font-sans selection:bg-[#1A1A1A] selection:text-white flex">
