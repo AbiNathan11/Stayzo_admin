@@ -21,27 +21,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [loading, setLoading] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const fetchProfile = () => {
+  const fetchProfile = async () => {
     const token = Cookies.get('stayzo_token');
     if (!token) return;
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const lowerEmail = (payload.email || '').toLowerCase();
-      fetch(`http://localhost:3001/api/auth/profile/${lowerEmail}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      .then(res => {
+      
+      try {
+        const res = await fetch(`http://localhost:3001/api/auth/profile/${lowerEmail}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
         if (res.status === 401 || res.status === 404) {
           Cookies.remove('stayzo_token');
           Cookies.remove('stayzo_refresh_token');
           window.location.href = '/login';
-          throw new Error('Invalid session');
+          return;
         }
-        return res.json();
-      })
-      .then(data => {
+        
+        const data = await res.json();
         if (data.user) {
           setAdminUser({
             firstName: data.user.firstName || payload.firstName || 'Administrator',
@@ -50,18 +51,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             profileImage: data.user.profileImage
           });
         }
-        setIsVerifying(false);
-      })
-      .catch(err => {
-        console.error('Failed to fetch user profile', err);
+      } catch (err) {
+        console.error('Failed to fetch user profile from API', err);
         setAdminUser({
           firstName: payload.firstName || 'Administrator',
           lastName: payload.lastName || '',
           email: payload.email || 'admin@stayzo.com',
           profileImage: null
         });
-        setIsVerifying(false);
-      });
+      }
+      setIsVerifying(false);
     } catch (e) {
       console.error(e);
       setIsVerifying(false);
