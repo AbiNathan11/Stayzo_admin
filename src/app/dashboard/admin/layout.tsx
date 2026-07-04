@@ -150,7 +150,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     Cookies.remove('stayzo_token');
     Cookies.remove('stayzo_refresh_token');
     localStorage.removeItem('stayzo_admin_profile');
-    window.location.href = '/login';
+    window.location.replace('/login');
   };
 
   const getPageTitle = () => {
