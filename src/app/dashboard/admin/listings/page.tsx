@@ -10,6 +10,7 @@ import {
     EyeOff,
     Check
 } from 'lucide-react';
+import PropertyReviews from '@/components/PropertyReviews';
 
 export default function ListingInteractionsPage() {
     const [listings, setListings] = useState<any[]>([]);
@@ -181,6 +182,8 @@ export default function ListingInteractionsPage() {
                                     <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-500" />
                                     <span className="line-clamp-1">{listing.reason}</span>
                                 </div>
+
+                                <PropertyReviews propertyId={listing.id} />
 
                                 {/* Interactive Workflow Trigger Actions */}
                                 <div className="flex items-center justify-between pt-1">

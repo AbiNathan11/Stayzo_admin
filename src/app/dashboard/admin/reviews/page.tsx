@@ -21,6 +21,8 @@ interface ReviewItem {
   date: string;
   likes: number;
   status: 'Approved' | 'Flagged' | 'Pending';
+  propertyId: string;
+  ownerName: string;
 }
 
 export default function ReviewsPage() {
@@ -33,18 +35,24 @@ export default function ReviewsPage() {
     fetch('http://localhost:3001/api/reviews', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
-        const mapped = data.map((item: any) => ({
-          id: item.id,
-          authorName: item.authorName,
-          authorEmail: item.authorEmail,
-          rating: item.rating,
-          sentiment: item.sentiment,
-          comment: item.comment,
-          targetName: item.targetName,
-          date: new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          likes: item.likes,
-          status: item.status
-        }));
+        const mapped = data.map((item: any) => {
+          const owner = item.property?.owner;
+          const ownerFullName = owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() : 'Unknown Owner';
+          return {
+            id: item.id,
+            authorName: item.authorName || (item.user ? `${item.user.firstName || ''} ${item.user.lastName || ''}`.trim() : '') || 'Anonymous Tenant',
+            authorEmail: item.authorEmail || item.user?.email || '',
+            rating: item.rating,
+            sentiment: item.sentiment || 'Neutral',
+            comment: item.comment,
+            targetName: item.property?.title || item.targetName || 'Unknown Property',
+            date: new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            likes: item.likes || 0,
+            status: item.status || 'Pending',
+            propertyId: item.property?.id || item.propertyId || 'N/A',
+            ownerName: ownerFullName
+          };
+        });
         setReviews(mapped);
       })
       .catch(console.error)
@@ -244,6 +252,8 @@ export default function ReviewsPage() {
                       <div className="min-w-0">
                         <span className="text-[8px] text-gray-400 font-extrabold uppercase tracking-widest block">Reviewed Property</span>
                         <span className="font-extrabold text-xs text-gray-900 truncate block">{item.targetName}</span>
+                        <span className="text-[9px] text-gray-400 block mt-0.5">ID: {item.propertyId}</span>
+                        <span className="text-[9px] text-[#4F46E5] font-bold block mt-0.5">Owner: {item.ownerName}</span>
                       </div>
                     </div>
                     <span className="text-gray-400 text-[9px] font-extrabold shrink-0 ml-2">{item.date}</span>
