@@ -62,6 +62,18 @@ export default function MessagesPage() {
     fetchMessages();
   }, []);
 
+  useEffect(() => {
+    const mainEl = document.querySelector('main');
+    if (selectedMessage) {
+      if (mainEl) mainEl.style.overflowY = 'hidden';
+    } else {
+      if (mainEl) mainEl.style.overflowY = '';
+    }
+    return () => {
+      if (mainEl) mainEl.style.overflowY = '';
+    };
+  }, [selectedMessage]);
+
   const toggleReadStatus = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const currentMsg = messages.find(m => m.id === id);
@@ -159,7 +171,8 @@ export default function MessagesPage() {
   });
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300 relative">
+    <>
+      <div className="space-y-8 animate-in fade-in duration-300 relative">
 
       {/* QUICK STATUS METRICS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -341,11 +354,12 @@ export default function MessagesPage() {
         </div>
 
       </div>
+    </div>
 
-      {/* DETAILED MESSAGE DRAWER */}
+    {/* DETAILED MESSAGE DRAWER */}
       {selectedMessage && (
         <div className="fixed inset-0 bg-black/25 backdrop-blur-xs flex justify-end z-50 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-[500px] h-full shadow-2xl p-8 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-300">
+          <div className="bg-white w-full max-w-[500px] h-full shadow-2xl p-8 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-300 rounded-l-[40px] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <div className="space-y-8">
 
               {/* Header */}
@@ -411,7 +425,7 @@ export default function MessagesPage() {
                 <button
                   onClick={handleSendReply}
                   disabled={replyLoading || !replyText.trim()}
-                  className="w-full bg-[#1A1A1A] hover:bg-black text-white py-3 rounded-2xl text-xs font-extrabold uppercase transition cursor-pointer disabled:opacity-50 flex items-center justify-center space-x-2"
+                  className="w-full bg-[#1A1A1A] hover:bg-black text-white py-3 rounded-2xl text-xs font-extrabold uppercase transition cursor-pointer disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                 >
                   <span>{replyLoading ? 'Sending Reply...' : 'Send Reply via Gmail'}</span>
                 </button>
@@ -437,7 +451,6 @@ export default function MessagesPage() {
           </div>
         </div>
       )}
-
-    </div>
+    </>
   );
 }

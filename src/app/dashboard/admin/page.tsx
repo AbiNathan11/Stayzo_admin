@@ -20,6 +20,7 @@ export default function AdminOverviewDashboard() {
     activeListings: 0,
     pendingMessages: 0
   });
+  const [monthlyRevenue, setMonthlyRevenue] = useState<number[]>(Array(12).fill(0));
 
   useEffect(() => {
     fetch('http://localhost:3001/api/auth/stats', { cache: 'no-store' })
@@ -31,13 +32,16 @@ export default function AdminOverviewDashboard() {
           activeListings: data.activeListings || 0,
           pendingMessages: data.pendingMessages || 0
         });
+        if (data.monthlyRevenue) {
+          setMonthlyRevenue(data.monthlyRevenue);
+        }
       })
       .catch(console.error);
   }, []);
 
   // Global aggregate metrics reflecting your dashboard's feature set
   const stats = [
-    { label: 'Total Platform Users', value: statsData.totalUsers.toString(), change: 'Live database count', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Total Platform Users', value: statsData.totalUsers.toString(), change: 'Live count', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
     { label: 'Pending Approvals', value: statsData.pendingApprovals.toString(), change: 'Requires evaluation', icon: Building2, color: 'text-amber-600', bg: 'bg-amber-50' },
     { label: 'Active Listings', value: statsData.activeListings.toString(), change: 'Live properties', icon: FileText, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { label: 'Pending Messages', value: statsData.pendingMessages.toString(), change: 'Unread inquiries', icon: ShieldAlert, color: 'text-red-600', bg: 'bg-red-50' },
@@ -82,6 +86,13 @@ export default function AdminOverviewDashboard() {
     }
   ];
 
+  const maxRevenue = Math.max(...monthlyRevenue, 1000);
+  const points = monthlyRevenue.map((amt, idx) => {
+    const x = 50 + idx * (900 / 11);
+    const y = 220 - (amt / maxRevenue) * 190;
+    return { x, y, amt };
+  });
+
   return (
     <div className="space-y-8 max-w-[1600px] mx-auto">
 
@@ -121,9 +132,6 @@ export default function AdminOverviewDashboard() {
             <h3 className="font-extrabold text-base text-gray-900">Revenue Analytics</h3>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Monthly platform revenue growth</p>
           </div>
-          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">
-            +18.4% YoY Growth
-          </span>
         </div>
         
         {/* SVG Area Chart representing the revenue */}
@@ -145,19 +153,19 @@ export default function AdminOverviewDashboard() {
             <line x1="50" y1="220" x2="950" y2="220" stroke="#E2E8F0" strokeWidth="1" />
 
             {/* Y Axis Labels */}
-            <text x="40" y="34" textAnchor="end" className="text-[10px] font-extrabold fill-gray-400">Rs 500K</text>
-            <text x="40" y="84" textAnchor="end" className="text-[10px] font-extrabold fill-gray-400">Rs 375K</text>
-            <text x="40" y="134" textAnchor="end" className="text-[10px] font-extrabold fill-gray-400">Rs 250K</text>
-            <text x="40" y="184" textAnchor="end" className="text-[10px] font-extrabold fill-gray-400">Rs 125K</text>
+            <text x="40" y="34" textAnchor="end" className="text-[10px] font-extrabold fill-gray-400">Rs {(maxRevenue).toLocaleString(undefined, { maximumFractionDigits: 0 })}</text>
+            <text x="40" y="84" textAnchor="end" className="text-[10px] font-extrabold fill-gray-400">Rs {(maxRevenue * 0.75).toLocaleString(undefined, { maximumFractionDigits: 0 })}</text>
+            <text x="40" y="134" textAnchor="end" className="text-[10px] font-extrabold fill-gray-400">Rs {(maxRevenue * 0.5).toLocaleString(undefined, { maximumFractionDigits: 0 })}</text>
+            <text x="40" y="184" textAnchor="end" className="text-[10px] font-extrabold fill-gray-400">Rs {(maxRevenue * 0.25).toLocaleString(undefined, { maximumFractionDigits: 0 })}</text>
             <text x="40" y="224" textAnchor="end" className="text-[10px] font-extrabold fill-gray-400">Rs 0</text>
 
             {/* Data Line (Revenue path) */}
             <path
-              d="M 50 220 C 120 180, 200 190, 280 140 C 360 90, 440 120, 520 80 C 600 40, 680 70, 760 50 C 840 30, 920 40, 950 35 L 950 220 L 50 220 Z"
+              d={`M 50 220 ${points.map(p => `L ${p.x} ${p.y}`).join(' ')} L 950 220 Z`}
               fill="url(#revenue-grad)"
             />
             <path
-              d="M 50 220 C 120 180, 200 190, 280 140 C 360 90, 440 120, 520 80 C 600 40, 680 70, 760 50 C 840 30, 920 40, 950 35"
+              d={`M 50 ${points[0].y} ${points.slice(1).map(p => `L ${p.x} ${p.y}`).join(' ')}`}
               fill="none"
               stroke="#10B981"
               strokeWidth="3.5"
@@ -165,16 +173,22 @@ export default function AdminOverviewDashboard() {
             />
 
             {/* Interactive Data Nodes */}
-            <circle cx="280" cy="140" r="5" fill="#10B981" stroke="#FFFFFF" strokeWidth="2" />
-            <circle cx="520" cy="80" r="5" fill="#10B981" stroke="#FFFFFF" strokeWidth="2" />
-            <circle cx="760" cy="50" r="5" fill="#10B981" stroke="#FFFFFF" strokeWidth="2" />
-            <circle cx="950" cy="35" r="5" fill="#10B981" stroke="#FFFFFF" strokeWidth="2" />
-
-            {/* Label overlays for nodes */}
-            <text x="280" y="125" textAnchor="middle" className="text-[9px] font-black fill-gray-900">Rs 280K</text>
-            <text x="520" y="65" textAnchor="middle" className="text-[9px] font-black fill-gray-900">Rs 395K</text>
-            <text x="760" y="35" textAnchor="middle" className="text-[9px] font-black fill-gray-900">Rs 440K</text>
-            <text x="950" y="20" textAnchor="end" className="text-[9px] font-black fill-[#10B981]">Rs 495K</text>
+            {points.map((p, idx) => {
+              if (p.amt === 0) return null;
+              return (
+                <g key={idx}>
+                  <circle cx={p.x} cy={p.y} r="5" fill="#10B981" stroke="#FFFFFF" strokeWidth="2" />
+                  <text
+                    x={p.x}
+                    y={p.y - 12}
+                    textAnchor={idx === 11 ? "end" : "middle"}
+                    className="text-[9px] font-black fill-gray-900"
+                  >
+                    Rs {p.amt.toLocaleString()}
+                  </text>
+                </g>
+              );
+            })}
 
             {/* X Axis Labels */}
             <text x="50" y="242" textAnchor="middle" className="text-[10px] font-extrabold fill-gray-400">Jan</text>

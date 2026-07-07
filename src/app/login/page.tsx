@@ -1,5 +1,6 @@
 "use client";
 
+import Cookies from 'js-cookie';
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
@@ -11,6 +12,22 @@ export default function AdminLogin() {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+
+  React.useEffect(() => {
+    const token = Cookies.get('stayzo_token');
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const lowerEmail = (payload.email || '').toLowerCase();
+        const isAdminUser = !!payload.isAdmin || lowerEmail === 'stayzoavp@gmail.com' || lowerEmail.startsWith('admin@');
+        if (isAdminUser) {
+          window.location.href = '/dashboard/admin';
+        }
+      } catch (e) {
+        console.error('Failed to parse token in login page', e);
+      }
+    }
+  }, []);
 
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,8 +82,12 @@ export default function AdminLogin() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Invalid code');
 
-      if (data.token) {
-        sessionStorage.setItem('stayzo_token', data.token);
+      const token = data.stayzo_token || data.token;
+      if (token) {
+        Cookies.set('stayzo_token', token, { expires: 7 });
+      }
+      if (data.stayzo_refresh_token) {
+        Cookies.set('stayzo_refresh_token', data.stayzo_refresh_token, { expires: 30 });
       }
       toast.success('Access granted. Welcome back, Administrator!');
       

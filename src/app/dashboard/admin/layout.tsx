@@ -1,35 +1,48 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Cookies from 'js-cookie';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 // Added Building2 icon for the Listing Interactions item
-import { LayoutDashboard, Users, Activity, FileText, MessageSquare, LogOut, Building2, Mail, X, Menu } from 'lucide-react';
+import { LayoutDashboard, Users, Activity, FileText, MessageSquare, LogOut, Building2, Mail, X, Menu, Camera, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [adminUser, setAdminUser] = useState<{ firstName: string; lastName: string; email: string; profileImage?: string | null } | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(true);
   
   // Profile modal states
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', email: '', profileImage: '' });
+  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', email: '', profileImage: '' as string | null });
+  const [loading, setLoading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const fetchProfile = () => {
-    const token = sessionStorage.getItem('stayzo_token');
+  const fetchProfile = async () => {
+    const token = Cookies.get('stayzo_token');
     if (!token) return;
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const lowerEmail = (payload.email || '').toLowerCase();
-      fetch(`http://localhost:3001/api/auth/profile/${lowerEmail}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+      
+      try {
+        const res = await fetch(`http://localhost:3001/api/auth/profile/${lowerEmail}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (res.status === 401 || res.status === 404) {
+          Cookies.remove('stayzo_token');
+          Cookies.remove('stayzo_refresh_token');
+          window.location.href = '/login';
+          return;
         }
-      })
-      .then(res => res.json())
-      .then(data => {
+        
+        const data = await res.json();
         if (data.user) {
           setAdminUser({
             firstName: data.user.firstName || payload.firstName || 'Administrator',
@@ -38,23 +51,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             profileImage: data.user.profileImage
           });
         }
-      })
-      .catch(err => {
-        console.error('Failed to fetch user profile', err);
+      } catch (err) {
+        console.error('Failed to fetch user profile from API', err);
         setAdminUser({
           firstName: payload.firstName || 'Administrator',
           lastName: payload.lastName || '',
           email: payload.email || 'admin@stayzo.com',
           profileImage: null
         });
-      });
+      }
+      setIsVerifying(false);
     } catch (e) {
       console.error(e);
+      setIsVerifying(false);
     }
   };
 
   useEffect(() => {
-    const token = sessionStorage.getItem('stayzo_token');
+    const token = Cookies.get('stayzo_token');
     if (!token) {
       window.location.href = '/login';
       return;
@@ -66,6 +80,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const isAdminUser = !!payload.isAdmin || lowerEmail === 'stayzoavp@gmail.com' || lowerEmail.startsWith('admin@');
       
       if (!isAdminUser) {
+        Cookies.remove('stayzo_token');
+        Cookies.remove('stayzo_refresh_token');
         window.location.href = '/login';
         return;
       }
@@ -73,17 +89,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       fetchProfile();
     } catch (e) {
       console.error('Failed to parse admin token', e);
+      Cookies.remove('stayzo_token');
+      Cookies.remove('stayzo_refresh_token');
       window.location.href = '/login';
     }
   }, []);
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editForm.firstName) {
+  const handleSaveProfile = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!editForm.firstName.trim()) {
       toast.error("First name is required.");
       return;
     }
-    const token = sessionStorage.getItem('stayzo_token');
+    setLoading(true);
+    const token = Cookies.get('stayzo_token');
     try {
       const res = await fetch('http://localhost:3001/api/auth/update-profile', {
         method: 'PUT',
@@ -102,15 +121,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       if (!res.ok) throw new Error(data.error || 'Failed to update profile');
 
       setAdminUser({
-        firstName: data.user.firstName,
-        lastName: data.user.lastName,
-        email: data.user.email,
-        profileImage: data.user.profileImage
+        firstName: data.user?.firstName || editForm.firstName,
+        lastName: data.user?.lastName || editForm.lastName,
+        email: data.user?.email || editForm.email,
+        profileImage: data.user?.profileImage || editForm.profileImage
       });
       setIsEditing(false);
       toast.success("Profile details updated successfully.");
     } catch (err: any) {
       toast.error(err.message || 'An error occurred.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -126,9 +147,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem('stayzo_token');
+    Cookies.remove('stayzo_token');
+    Cookies.remove('stayzo_refresh_token');
     localStorage.removeItem('stayzo_admin_profile');
-    window.location.href = '/login';
+    window.location.replace('/login');
   };
 
   const getPageTitle = () => {
@@ -164,6 +186,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       ],
     },
   ];
+
+  if (isVerifying) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#F8FAFC]">
+        <Loader2 className="w-8 h-8 animate-spin text-[#1A1A1A]" />
+        <p className="text-xs font-bold text-gray-400 mt-4 uppercase tracking-widest animate-pulse">Verifying Credentials...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen overflow-hidden bg-[#F8FAFC] text-[#1A1A1A] font-sans selection:bg-[#1A1A1A] selection:text-white flex">
@@ -271,6 +302,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     profileImage: adminUser.profileImage || ''
                   });
                 }
+                setIsEditing(false);
                 setIsProfileOpen(true);
               }}
               className="flex items-center space-x-3 hover:opacity-80 transition text-left outline-none cursor-pointer"
@@ -291,7 +323,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
 
         {/* PAGE CONTENT */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-6 sm:space-y-8">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-6 sm:space-y-8">
           {children}
         </main>
 
@@ -299,137 +331,177 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* PROFILE DIALOG MODAL */}
       {isProfileOpen && adminUser && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-6 relative animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-              <h3 className="font-extrabold text-lg text-gray-900">Admin Profile Details</h3>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={!loading ? () => { setIsProfileOpen(false); setIsEditing(false); } : undefined} />
+          
+          <div className="relative w-full max-w-md bg-white rounded-[24px] shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-extrabold text-[#1A1A1A]">{isEditing ? 'Edit Profile' : 'Admin Profile Details'}</h2>
               <button 
                 onClick={() => { setIsProfileOpen(false); setIsEditing(false); }}
-                className="text-gray-400 hover:text-gray-700 transition cursor-pointer"
+                disabled={loading}
+                className="p-2 hover:bg-gray-100 rounded-full transition disabled:opacity-50"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
 
-            {!isEditing ? (
-              <div className="space-y-4">
-                <div className="flex items-center space-x-4 bg-gray-50 p-4 rounded-2xl">
-                  <div className="w-12 h-12 rounded-full bg-[#1A1A1A] text-white flex items-center justify-center font-extrabold text-lg overflow-hidden shrink-0">
-                    {adminUser.profileImage ? (
-                      <img src={adminUser.profileImage} alt="Profile" className="w-full h-full object-cover" />
-                    ) : (
-                      adminUser.firstName.charAt(0).toUpperCase()
-                    )}
+            {/* Content */}
+            <div className="p-6 overflow-y-auto">
+              {!isEditing ? (
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-4 bg-gray-50 p-4 rounded-2xl">
+                    <div className="w-16 h-16 rounded-full bg-[#1A1A1A] text-white flex items-center justify-center font-extrabold text-2xl overflow-hidden shrink-0 shadow-sm border border-gray-200">
+                      {adminUser.profileImage ? (
+                        <img src={adminUser.profileImage} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        adminUser.firstName.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-lg text-gray-900">{adminUser.firstName} {adminUser.lastName}</h4>
+                      <p className="text-xs text-gray-500 font-semibold mt-0.5">{adminUser.email}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-extrabold text-base text-gray-900">{adminUser.firstName} {adminUser.lastName}</h4>
-                    <p className="text-xs text-gray-400 font-semibold">{adminUser.email}</p>
+
+                  <div className="space-y-4 pt-2">
+                    <div className="grid grid-cols-3 border-b border-gray-100 pb-3">
+                      <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">First Name</span>
+                      <span className="col-span-2 text-sm text-gray-900 font-semibold">{adminUser.firstName}</span>
+                    </div>
+                    <div className="grid grid-cols-3 border-b border-gray-100 pb-3">
+                      <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Last Name</span>
+                      <span className="col-span-2 text-sm text-gray-900 font-semibold">{adminUser.lastName || '-'}</span>
+                    </div>
+                    <div className="grid grid-cols-3">
+                      <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Email</span>
+                      <span className="col-span-2 text-sm text-gray-900 font-semibold">{adminUser.email}</span>
+                    </div>
                   </div>
                 </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Avatar Section */}
+                  <div className="flex flex-col items-center justify-center mb-2">
+                    <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                      {editForm.profileImage ? (
+                        <img 
+                          src={editForm.profileImage} 
+                          alt="Profile Preview" 
+                          className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                        />
+                      ) : (
+                        <div className="w-24 h-24 rounded-full bg-[#1A1A1A] text-white flex items-center justify-center text-3xl font-black shadow-lg border-4 border-white">
+                          {editForm.firstName.charAt(0).toUpperCase() || 'A'}
+                        </div>
+                      )}
+                      <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Camera className="w-6 h-6 text-white" />
+                      </div>
+                    </div>
+                    <p className="mt-3 text-xs font-bold text-indigo-600 cursor-pointer hover:underline" onClick={() => fileInputRef.current?.click()}>
+                      Change Picture
+                    </p>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      onChange={handleFileChange} 
+                      accept="image/*" 
+                      className="hidden" 
+                    />
+                  </div>
 
-                <div className="space-y-3 pt-2 text-xs font-bold text-gray-700">
-                  <div className="grid grid-cols-3 border-b border-gray-100 pb-2">
-                    <span className="text-gray-400 font-extrabold">First Name</span>
-                    <span className="col-span-2 text-gray-900">{adminUser.firstName}</span>
-                  </div>
-                  <div className="grid grid-cols-3 border-b border-gray-100 pb-2">
-                    <span className="text-gray-400 font-extrabold">Last Name</span>
-                    <span className="col-span-2 text-gray-900">{adminUser.lastName || '-'}</span>
-                  </div>
-                  <div className="grid grid-cols-3">
-                    <span className="text-gray-400 font-extrabold">Email Address</span>
-                    <span className="col-span-2 text-gray-900">{adminUser.email}</span>
+                  {/* Form Fields */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">First Name</label>
+                      <input 
+                        type="text" 
+                        value={editForm.firstName} 
+                        onChange={e => setEditForm({ ...editForm, firstName: e.target.value })}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-[#1A1A1A] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
+                        placeholder="Enter your first name"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Last Name</label>
+                      <input 
+                        type="text" 
+                        value={editForm.lastName} 
+                        onChange={e => setEditForm({ ...editForm, lastName: e.target.value })}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-[#1A1A1A] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
+                        placeholder="Enter your last name"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Email Address</label>
+                      <input 
+                        type="email" 
+                        value={editForm.email} 
+                        disabled
+                        className="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl text-sm font-semibold text-gray-400 cursor-not-allowed"
+                      />
+                      <p className="mt-1 text-[11px] text-gray-400 font-medium">Email addresses cannot be changed.</p>
+                    </div>
                   </div>
                 </div>
+              )}
+            </div>
 
-                <div className="pt-4 flex space-x-3">
+            {/* Footer */}
+            <div className="p-6 border-t border-gray-50 bg-gray-50 flex justify-end space-x-3">
+              {!isEditing ? (
+                <>
+                  <button
+                    onClick={() => setIsProfileOpen(false)}
+                    className="px-5 py-2.5 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-200 transition"
+                  >
+                    Close
+                  </button>
                   <button
                     onClick={() => {
                       setEditForm({
                         firstName: adminUser.firstName,
                         lastName: adminUser.lastName,
                         email: adminUser.email,
-                        profileImage: adminUser.profileImage || ''
+                        profileImage: adminUser.profileImage || null
                       });
                       setIsEditing(true);
                     }}
-                    className="flex-1 bg-[#1A1A1A] hover:bg-black text-white py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer text-center"
+                    className="px-6 py-2.5 rounded-full text-sm font-bold bg-[#1A1A1A] text-white hover:bg-black transition shadow-md hover:shadow-lg"
                   >
                     Edit Profile
                   </button>
-                  <button
-                    onClick={() => setIsProfileOpen(false)}
-                    className="flex-1 border border-gray-200 hover:bg-gray-50 text-gray-700 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer text-center"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <form onSubmit={handleSaveProfile} className="space-y-4">
-                <div className="flex flex-col items-center space-y-2 pb-2">
-                  <div className="w-20 h-20 rounded-full bg-[#1A1A1A] text-white flex items-center justify-center font-extrabold text-2xl overflow-hidden border border-gray-100">
-                    {editForm.profileImage ? (
-                      <img src={editForm.profileImage} alt="Profile" className="w-full h-full object-cover" />
-                    ) : (
-                      editForm.firstName.charAt(0).toUpperCase()
-                    )}
-                  </div>
-                  <label className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer font-bold bg-blue-50 px-3 py-1 rounded-lg border border-blue-100">
-                    Upload Profile Picture
-                    <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-                  </label>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">First Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={editForm.firstName}
-                    onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
-                    className="w-full bg-gray-50 border-none rounded-xl px-4 py-2.5 text-xs font-bold text-gray-800 outline-none focus:ring-1 focus:ring-gray-300"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Last Name</label>
-                  <input
-                    type="text"
-                    value={editForm.lastName}
-                    onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
-                    className="w-full bg-gray-50 border-none rounded-xl px-4 py-2.5 text-xs font-bold text-gray-800 outline-none focus:ring-1 focus:ring-gray-300"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Email Address (Read-only)</label>
-                  <input
-                    type="email"
-                    required
-                    disabled
-                    value={editForm.email}
-                    className="w-full bg-gray-100 border-none rounded-xl px-4 py-2.5 text-xs font-bold text-gray-400 cursor-not-allowed outline-none"
-                  />
-                </div>
-
-                <div className="pt-4 flex space-x-3">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer text-center"
-                  >
-                    Save Changes
-                  </button>
-                  <button
-                    type="button"
+                </>
+              ) : (
+                <>
+                  <button 
                     onClick={() => setIsEditing(false)}
-                    className="flex-1 border border-gray-200 hover:bg-gray-50 text-gray-700 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer text-center"
+                    disabled={loading}
+                    className="px-5 py-2.5 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-200 transition disabled:opacity-50"
                   >
                     Cancel
                   </button>
-                </div>
-              </form>
-            )}
+                  <button 
+                    onClick={() => handleSaveProfile()}
+                    disabled={loading || !editForm.firstName.trim()}
+                    className="px-6 py-2.5 rounded-full text-sm font-bold bg-[#1A1A1A] text-white hover:bg-black transition disabled:opacity-50 flex items-center space-x-2 shadow-md hover:shadow-lg"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <span>Save Changes</span>
+                    )}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
