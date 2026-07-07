@@ -10,6 +10,7 @@ import {
     EyeOff,
     Check
 } from 'lucide-react';
+import PropertyReviews from '@/components/PropertyReviews';
 
 export default function ListingInteractionsPage() {
     const [listings, setListings] = useState<any[]>([]);

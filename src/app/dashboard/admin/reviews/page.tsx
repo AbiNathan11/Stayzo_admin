@@ -21,6 +21,8 @@ interface ReviewItem {
   date: string;
   likes: number;
   status: 'Approved' | 'Flagged' | 'Pending';
+  propertyId: string;
+  ownerName: string;
 }
 
 export default function ReviewsPage() {
@@ -33,18 +35,24 @@ export default function ReviewsPage() {
     fetch('http://localhost:3001/api/reviews', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
-        const mapped = data.map((item: any) => ({
-          id: item.id,
-          authorName: item.authorName,
-          authorEmail: item.authorEmail,
-          rating: item.rating,
-          sentiment: item.sentiment,
-          comment: item.comment,
-          targetName: item.targetName,
-          date: new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          likes: item.likes,
-          status: item.status
-        }));
+        const mapped = data.map((item: any) => {
+          const owner = item.property?.owner;
+          const ownerFullName = owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() : 'Unknown Owner';
+          return {
+            id: item.id,
+            authorName: item.authorName || (item.user ? `${item.user.firstName || ''} ${item.user.lastName || ''}`.trim() : '') || 'Anonymous Tenant',
+            authorEmail: item.authorEmail || item.user?.email || '',
+            rating: item.rating,
+            sentiment: item.sentiment || 'Neutral',
+            comment: item.comment,
+            targetName: item.property?.title || item.targetName || 'Unknown Property',
+            date: new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            likes: item.likes || 0,
+            status: item.status || 'Pending',
+            propertyId: item.property?.id || item.propertyId || 'N/A',
+            ownerName: ownerFullName
+          };
+        });
         setReviews(mapped);
       })
       .catch(console.error)
