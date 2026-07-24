@@ -18,6 +18,7 @@ export default function ListingInteractionsPage() {
     const [selectedProperty, setSelectedProperty] = useState<any | null>(null);
     const [nearbyAmenities, setNearbyAmenities] = useState<any[]>([]);
     const [loadingAmenities, setLoadingAmenities] = useState(false);
+    const [showAllAmenities, setShowAllAmenities] = useState(false);
 
     const fetchListings = () => {
         fetch('http://localhost:3001/api/properties', { cache: 'no-store' })
@@ -28,13 +29,14 @@ export default function ListingInteractionsPage() {
                     title: item.title,
                     description: item.description,
                     category: item.category,
+                    hall: item.hall,
                     bedrooms: item.bedrooms,
                     bathrooms: item.bathrooms,
                     amenities: item.amenities || [],
                     owner: item.owner ? `${item.owner.firstName || ''} ${item.owner.lastName || ''}`.trim() || 'Admin/Owner' : 'Unknown Owner',
                     ownerEmail: item.owner?.email || 'N/A',
                     location: `${item.city || 'Anytown'}, ${item.state || 'ST'}`,
-                    price: `$${item.price}/mo`,
+                    price: `Rs ${item.price}/mo`,
                     fraudScore: Math.floor(Math.random() * 80) + 20, // Mock noise level for fallback
                     status: item.status === 'Disabled' ? 'Disabled' : 'Active',
                     image: item.images?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=400&q=80',
@@ -51,6 +53,7 @@ export default function ListingInteractionsPage() {
     React.useEffect(() => {
         if (!selectedProperty) {
             setNearbyAmenities([]);
+            setShowAllAmenities(false);
             return;
         }
         setLoadingAmenities(true);
@@ -144,7 +147,7 @@ export default function ListingInteractionsPage() {
                     <div className="space-y-1">
                         <span className="text-xs font-extrabold text-gray-400 uppercase tracking-wider">High Noise Level Flags</span>
                         <div className="text-3xl font-black text-gray-900">
-                            {listings.filter(l => (l.noisePrediction?.noiseLevelScore ?? l.fraudScore) > 75).length}
+                            {listings.filter(l => l.noisePrediction?.label === 'High' || l.noisePrediction?.noiseLevelScore > 66).length}
                         </div>
                         <span className="text-xs font-bold text-amber-500 bg-amber-50 px-2 py-0.5 rounded-md inline-block mt-2">Requires Auditing</span>
                     </div>
@@ -235,7 +238,17 @@ export default function ListingInteractionsPage() {
                                         <td className="py-4 px-4">
                                             <div className="flex items-center justify-center space-x-2">
                                                 <button
-                                                    onClick={() => setSelectedProperty(listing)}
+                                                    onClick={() => {
+                                                        setSelectedProperty(listing);
+                                                        fetch(`http://localhost:3001/api/properties/${listing.id}`)
+                                                            .then(res => res.json())
+                                                            .then(data => {
+                                                                if (data.noisePrediction) {
+                                                                    setSelectedProperty((prev: any) => prev && prev.id === listing.id ? { ...prev, noisePrediction: data.noisePrediction } : prev);
+                                                                }
+                                                            })
+                                                            .catch(console.error);
+                                                    }}
                                                     className="px-3 py-1.5 rounded-lg font-extrabold transition cursor-pointer border bg-white border-gray-200 text-gray-700 hover:bg-gray-50 text-[10px] uppercase tracking-wider"
                                                 >
                                                     More Details
@@ -343,8 +356,8 @@ export default function ListingInteractionsPage() {
                                         <span className="font-extrabold text-gray-700">{selectedProperty.location}</span>
                                     </div>
                                     <div className="space-y-1 bg-gray-50/20 p-3 rounded-xl border border-gray-50/50">
-                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Category</span>
-                                        <span className="font-extrabold text-gray-700">{selectedProperty.category || 'N/A'}</span>
+                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Halls</span>
+                                        <span className="font-extrabold text-gray-700">{selectedProperty.hall || 0}</span>
                                     </div>
                                     <div className="space-y-1 bg-gray-50/20 p-3 rounded-xl border border-gray-50/50">
                                         <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Bedrooms</span>
@@ -365,22 +378,7 @@ export default function ListingInteractionsPage() {
                                 </p>
                             </div>
 
-                            {/* Amenities */}
-                            {selectedProperty.amenities && selectedProperty.amenities.length > 0 && (
-                                <div className="space-y-2">
-                                    <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-2">Amenities</h5>
-                                    <div className="flex flex-wrap gap-2 pt-1">
-                                        {selectedProperty.amenities.map((amenity: string, idx: number) => (
-                                            <span
-                                                key={idx}
-                                                className="px-2.5 py-1 bg-gray-50 border border-gray-100 text-gray-700 rounded-lg text-[9px] font-extrabold uppercase"
-                                            >
-                                                {amenity}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+
 
                             {/* Noise Level Section */}
                             <div className="space-y-4">
@@ -405,24 +403,7 @@ export default function ListingInteractionsPage() {
                                             {selectedProperty.noisePrediction.explanation}
                                         </p>
 
-                                        {selectedProperty.noisePrediction.factors && selectedProperty.noisePrediction.factors.length > 0 && (
-                                            <div className="space-y-2">
-                                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Contributing Factors</span>
-                                                <div className="divide-y divide-gray-50 bg-white border border-gray-50 rounded-xl overflow-hidden text-xs">
-                                                    {selectedProperty.noisePrediction.factors.map((f: any, idx: number) => (
-                                                        <div key={idx} className="p-2.5 flex justify-between items-center font-bold">
-                                                            <div className="space-y-0.5">
-                                                                <p className="text-gray-800 font-extrabold">{f.name}</p>
-                                                                <p className="text-[9px] text-gray-400 font-semibold">{f.description}</p>
-                                                            </div>
-                                                            <span className={`text-[10px] font-black ${f.contribution >= 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-                                                                {f.contribution >= 0 ? `+${f.contribution}` : f.contribution}
-                                                            </span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
+
                                     </div>
                                 ) : (
                                     <div className="text-gray-400 text-xs font-semibold py-4 text-center">No acoustic audit data available</div>
@@ -446,36 +427,46 @@ export default function ListingInteractionsPage() {
                                         ))}
                                     </div>
                                 ) : nearbyAmenities.length > 0 ? (
-                                    <div className="grid grid-cols-1 gap-2.5">
-                                        {nearbyAmenities.map((amenity: any) => {
-                                            const getCategoryDetails = (cat: string) => {
-                                                switch(cat.toLowerCase()) {
-                                                    case 'hospital': return { emoji: '🏥', bg: 'bg-red-50 text-red-600 border-red-100' };
-                                                    case 'supermarket': return { emoji: '🛒', bg: 'bg-emerald-50 text-emerald-600 border-emerald-100' };
-                                                    case 'bus_station': return { emoji: '🚌', bg: 'bg-blue-50 text-blue-600 border-blue-100' };
-                                                    case 'school': return { emoji: '🏫', bg: 'bg-indigo-50 text-indigo-600 border-indigo-100' };
-                                                    case 'university': return { emoji: '🎓', bg: 'bg-purple-50 text-purple-600 border-purple-100' };
-                                                    case 'restaurant': return { emoji: '🍔', bg: 'bg-amber-50 text-amber-600 border-amber-100' };
-                                                    case 'pharmacy': return { emoji: '💊', bg: 'bg-pink-50 text-pink-600 border-pink-100' };
-                                                    default: return { emoji: '📍', bg: 'bg-gray-50 text-gray-600 border-gray-100' };
-                                                }
-                                            };
-                                            const details = getCategoryDetails(amenity.category);
-                                            return (
-                                                <div key={amenity.id} className="flex items-center justify-between p-3.5 bg-white border border-gray-100 hover:border-gray-200 rounded-2xl transition">
-                                                    <div className="flex items-center space-x-3 min-w-0">
-                                                        <span className="text-xl shrink-0">{details.emoji}</span>
-                                                        <div className="min-w-0">
-                                                            <p className="text-xs font-extrabold text-gray-900 truncate">{amenity.name}</p>
-                                                            <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider block mt-0.5">{amenity.category.replace('_', ' ')}</span>
+                                    <div className="space-y-3">
+                                        <div className="grid grid-cols-1 gap-2.5">
+                                            {(showAllAmenities ? nearbyAmenities : nearbyAmenities.slice(0, 5)).map((amenity: any) => {
+                                                const getCategoryDetails = (cat: string) => {
+                                                    switch(cat.toLowerCase()) {
+                                                        case 'hospital': return { emoji: '🏥', bg: 'bg-red-50 text-red-600 border-red-100' };
+                                                        case 'supermarket': return { emoji: '🛒', bg: 'bg-emerald-50 text-emerald-600 border-emerald-100' };
+                                                        case 'bus_station': return { emoji: '🚌', bg: 'bg-blue-50 text-blue-600 border-blue-100' };
+                                                        case 'school': return { emoji: '🏫', bg: 'bg-indigo-50 text-indigo-600 border-indigo-100' };
+                                                        case 'university': return { emoji: '🎓', bg: 'bg-purple-50 text-purple-600 border-purple-100' };
+                                                        case 'restaurant': return { emoji: '🍔', bg: 'bg-amber-50 text-amber-600 border-amber-100' };
+                                                        case 'pharmacy': return { emoji: '💊', bg: 'bg-pink-50 text-pink-600 border-pink-100' };
+                                                        default: return { emoji: '📍', bg: 'bg-gray-50 text-gray-600 border-gray-100' };
+                                                    }
+                                                };
+                                                const details = getCategoryDetails(amenity.category);
+                                                return (
+                                                    <div key={amenity.id} className="flex items-center justify-between p-3.5 bg-white border border-gray-100 hover:border-gray-200 rounded-2xl transition">
+                                                        <div className="flex items-center space-x-3 min-w-0">
+                                                            <span className="text-xl shrink-0">{details.emoji}</span>
+                                                            <div className="min-w-0">
+                                                                <p className="text-xs font-extrabold text-gray-900 truncate">{amenity.name}</p>
+                                                                <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider block mt-0.5">{amenity.category.replace('_', ' ')}</span>
+                                                            </div>
                                                         </div>
+                                                        <span className="text-[10px] font-extrabold text-gray-500 bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full shrink-0">
+                                                            {amenity.distance >= 1000 ? `${(amenity.distance/1000).toFixed(1)} km` : `${amenity.distance} m`}
+                                                        </span>
                                                     </div>
-                                                    <span className="text-[10px] font-extrabold text-gray-500 bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full shrink-0">
-                                                        {amenity.distance >= 1000 ? `${(amenity.distance/1000).toFixed(1)} km` : `${amenity.distance} m`}
-                                                    </span>
-                                                </div>
-                                            );
-                                        })}
+                                                );
+                                            })}
+                                        </div>
+                                        {nearbyAmenities.length > 5 && (
+                                            <button 
+                                                onClick={() => setShowAllAmenities(!showAllAmenities)}
+                                                className="w-full py-2 bg-gray-50 hover:bg-gray-100 border border-gray-100 rounded-xl text-[10px] font-bold text-gray-600 uppercase tracking-wider transition cursor-pointer"
+                                            >
+                                                {showAllAmenities ? 'See Less' : 'See More'}
+                                            </button>
+                                        )}
                                     </div>
                                 ) : (
                                     <div className="text-gray-400 text-xs font-semibold py-4 text-center">No public venues or amenities found within 3km</div>
