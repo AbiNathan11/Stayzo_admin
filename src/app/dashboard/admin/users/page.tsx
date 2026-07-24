@@ -8,7 +8,7 @@ interface UserAccount {
   name: string;
   email: string;
   role: 'Tenant' | 'Landlord';
-  status: 'Active' | 'Suspended';
+  status: 'Active' | 'Suspend';
   verified: boolean;
   joinedDate: string;
   nicFront: string | null;
@@ -30,7 +30,7 @@ export default function UsersPage() {
           name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Unknown User',
           email: u.email,
           role: (u.isOwner ? 'Landlord' : 'Tenant') as 'Landlord' | 'Tenant',
-          status: (u.status === 'Suspended' ? 'Suspended' : 'Active') as 'Active' | 'Suspended',
+          status: (u.status === 'Suspended' ? 'Suspend' : 'Active') as 'Active' | 'Suspend',
           verified: !!u.verified,
           joinedDate: new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
           nicFront: u.nicFront,
@@ -153,7 +153,7 @@ export default function UsersPage() {
                 filteredUsers.map((account) => (
                   <tr 
                     key={account.id} 
-                    className={`hover:bg-gray-50/30 transition ${account.status === 'Suspended' ? 'bg-red-50/10' : ''}`}
+                    className={`hover:bg-gray-50/30 transition ${account.status === 'Suspend' ? 'bg-red-50/10' : ''}`}
                   >
                     <td className="py-4 px-6">
                       <div className="flex items-center space-x-3">
@@ -212,11 +212,11 @@ export default function UsersPage() {
                         </button>
                         <button
                           onClick={() => toggleSuspendUser(account.id)}
-                          className={`px-3 py-1.5 rounded-xl font-extrabold transition cursor-pointer border whitespace-nowrap ${account.status === 'Suspended' 
+                          className={`px-3 py-1.5 rounded-xl font-extrabold transition cursor-pointer border whitespace-nowrap ${account.status === 'Suspend' 
                             ? 'bg-red-500 border-red-500 text-white hover:bg-red-600' 
                             : 'bg-white border-red-200 text-red-500 hover:bg-red-50'}`}
                         >
-                          {account.status === 'Suspended' ? 'Unsuspend' : 'Suspend'}
+                          {account.status === 'Suspend' ? 'Unsuspend' : 'Suspend'}
                         </button>
                       </div>
                     </td>
@@ -367,13 +367,13 @@ export default function UsersPage() {
                 onClick={() => {
                   toggleSuspendUser(activeDetailUser.id);
                   // Refresh the activeDetailUser in local state so the drawer UI updates immediately!
-                  setActiveDetailUser(prev => prev ? { ...prev, status: prev.status === 'Suspended' ? 'Active' : 'Suspended' } : null);
+                  setActiveDetailUser(prev => prev ? { ...prev, status: prev.status === 'Suspend' ? 'Active' : 'Suspend' } : null);
                 }}
-                className={`flex-1 py-3 rounded-xl font-extrabold text-xs transition border cursor-pointer ${activeDetailUser.status === 'Suspended' 
+                className={`flex-1 py-3 rounded-xl font-extrabold text-xs transition border cursor-pointer ${activeDetailUser.status === 'Suspend' 
                   ? 'bg-red-500 border-red-500 text-white hover:bg-red-600' 
                   : 'bg-white border-red-200 text-red-500 hover:bg-red-50'}`}
               >
-                {activeDetailUser.status === 'Suspended' ? 'Unsuspend User' : 'Suspend User'}
+                {activeDetailUser.status === 'Suspend' ? 'Unsuspend User' : 'Suspend User'}
               </button>
             </div>
           </div>
