@@ -202,15 +202,6 @@ export default function UsersPage() {
                           <span>More Details</span>
                         </button>
                         <button
-                          onClick={() => toggleVerifyUser(account.id)}
-                          className={`px-3 py-1.5 rounded-xl font-extrabold transition cursor-pointer border flex items-center space-x-1 whitespace-nowrap ${account.verified 
-                            ? 'bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-100' 
-                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                          <span>{account.verified ? 'Verified' : 'Verify'}</span>
-                        </button>
-                        <button
                           onClick={() => toggleSuspendUser(account.id)}
                           className={`px-3 py-1.5 rounded-xl font-extrabold transition cursor-pointer border whitespace-nowrap ${account.status === 'Suspend' 
                             ? 'bg-red-500 border-red-500 text-white hover:bg-red-600' 
@@ -349,19 +340,21 @@ export default function UsersPage() {
 
             {/* Quick Actions Panel Footer */}
             <div className="p-6 border-t border-gray-50 bg-gray-50/30 flex items-center gap-3">
-              <button
-                onClick={() => {
-                  toggleVerifyUser(activeDetailUser.id);
-                  // Refresh the activeDetailUser in local state so the drawer UI updates immediately!
-                  setActiveDetailUser(prev => prev ? { ...prev, verified: !prev.verified } : null);
-                }}
-                className={`flex-1 py-3 rounded-xl font-extrabold text-xs transition border flex items-center justify-center space-x-1.5 cursor-pointer ${activeDetailUser.verified 
-                  ? 'bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-100' 
-                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
-              >
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>{activeDetailUser.verified ? 'Verified' : 'Verify User'}</span>
-              </button>
+              {activeDetailUser.role === 'Landlord' && (
+                <button
+                  onClick={() => {
+                    toggleVerifyUser(activeDetailUser.id);
+                    // Refresh the activeDetailUser in local state so the drawer UI updates immediately!
+                    setActiveDetailUser(prev => prev ? { ...prev, verified: !prev.verified } : null);
+                  }}
+                  className={`flex-1 py-3 rounded-xl font-extrabold text-xs transition border flex items-center justify-center space-x-1.5 cursor-pointer ${activeDetailUser.verified 
+                    ? 'bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-100' 
+                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
+                >
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{activeDetailUser.verified ? 'Verified' : 'Verify User'}</span>
+                </button>
+              )}
               
               <button
                 onClick={() => {
