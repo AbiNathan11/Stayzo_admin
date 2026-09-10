@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import toast, { Toaster } from 'react-hot-toast';
 import {
   Star,
   Home,
   Search,
   ThumbsUp,
-  Eye,
-  EyeOff
+  Eye
 } from 'lucide-react';
 
 interface ReviewItem {
@@ -23,6 +23,7 @@ interface ReviewItem {
   status: 'Approved' | 'Flagged' | 'Pending';
   propertyId: string;
   ownerName: string;
+  isTestimonial: boolean;
 }
 
 export default function ReviewsPage() {
@@ -50,7 +51,8 @@ export default function ReviewsPage() {
             likes: item.likes || 0,
             status: item.status || 'Pending',
             propertyId: item.property?.id || item.propertyId || 'N/A',
-            ownerName: ownerFullName
+            ownerName: ownerFullName,
+            isTestimonial: !!item.isTestimonial
           };
         });
         setReviews(mapped);
@@ -73,29 +75,32 @@ export default function ReviewsPage() {
     1: reviews.filter(r => r.rating === 1).length
   };
 
-  const handleApprove = async (id: string) => {
-    try {
-      const res = await fetch(`http://localhost:3001/api/reviews/${id}/approve`, {
-        method: 'POST'
-      });
-      if (res.ok) {
-        fetchReviews();
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const testimonialCount = reviews.filter(r => r.isTestimonial).length;
 
-  const handleFlag = async (id: string) => {
+  const handleToggleTestimonial = async (item: ReviewItem) => {
+    if (!item.isTestimonial && testimonialCount >= 7) {
+      toast.error('Maximum 7 reviews can be selected for landing page testimonials. Please unselect one before adding another.');
+      return;
+    }
+
     try {
-      const res = await fetch(`http://localhost:3001/api/reviews/${id}/flag`, {
-        method: 'POST'
+      const res = await fetch(`http://localhost:3001/api/reviews/${item.id}/testimonial`, {
+        method: 'PATCH'
       });
-      if (res.ok) {
-        fetchReviews();
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to update testimonial status');
+        return;
       }
+      if (data.isTestimonial) {
+        toast.success(`"${item.authorName}" added to landing page testimonials!`);
+      } else {
+        toast.success(`Removed from landing page testimonials`);
+      }
+      fetchReviews();
     } catch (err) {
       console.error(err);
+      toast.error('Network error updating testimonial status');
     }
   };
 
@@ -188,8 +193,18 @@ export default function ReviewsPage() {
         {/* Toolbar Header */}
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-gray-50 pb-5">
           <div>
-            <h4 className="font-extrabold text-base text-gray-900">Moderation Portal</h4>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Audit, flag, and remove property reviews</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <h4 className="font-extrabold text-base text-gray-900">Moderation Portal</h4>
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider border transition-all ${
+                testimonialCount === 7
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 ring-2 ring-emerald-100'
+                  : 'bg-indigo-50 text-indigo-700 border-indigo-100'
+              }`}>
+                <Eye className="w-3.5 h-3.5" />
+                Featured Testimonials: {testimonialCount} / 7
+              </span>
+            </div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-1">Audit and select up to 7 reviews to feature on the landing page</p>
           </div>
 
           {/* Search bar */}
@@ -276,28 +291,18 @@ export default function ReviewsPage() {
                       </span>
                     </td>
                     <td className="py-4 px-4">
-                      <div className="flex items-center justify-center space-x-2">
+                      <div className="flex items-center justify-center">
+                        {/* Testimonial Action Button using Eye icon */}
                         <button
-                          onClick={() => handleApprove(item.id)}
-                          title="Set Visible"
+                          onClick={() => handleToggleTestimonial(item)}
+                          title={item.isTestimonial ? "Featured in Landing Page Testimonials (Click to remove)" : "Show in Landing Page Testimonials (Max 7)"}
                           className={`p-1.5 rounded-lg font-extrabold transition cursor-pointer flex items-center justify-center border ${
-                            item.status === 'Approved'
-                              ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                              : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                            item.isTestimonial
+                              ? 'bg-emerald-50 text-emerald-600 border-emerald-300 ring-2 ring-emerald-400/30 shadow-xs'
+                              : 'bg-white text-gray-400 border-gray-200 hover:bg-emerald-50/50 hover:text-emerald-600 hover:border-emerald-200'
                           }`}
                         >
                           <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleFlag(item.id)}
-                          title="Set Hidden"
-                          className={`p-1.5 rounded-lg font-extrabold transition cursor-pointer flex items-center justify-center border ${
-                            item.status === 'Flagged'
-                              ? 'bg-red-500 text-white border-red-500 hover:bg-red-600'
-                              : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:text-red-500'
-                          }`}
-                        >
-                          <EyeOff className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -310,6 +315,8 @@ export default function ReviewsPage() {
 
       </div>
 
+      {/* Toaster for admin notifications */}
+      <Toaster position="top-right" />
     </div>
   );
 }
